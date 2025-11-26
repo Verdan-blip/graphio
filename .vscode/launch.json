@@ -1,0 +1,72 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug Meson Project",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/graphio",  // Имя вашего таргета из meson.build
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [
+                {
+                    "name": "WAYLAND_DEBUG",
+                    "value": "1"
+                },
+                {
+                    "name": "XDG_RUNTIME_DIR",
+                    "value": "/run/user/1000"  // Убедитесь что путь правильный
+                },
+                {
+                    "name": "WLR_DRM_DEVICES",
+                    "value": "/dev/dri/card0"  // Опционально, для DRM
+                }
+            ],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Включить pretty-printing",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                },
+                {
+                    "description": "Отключить подтверждения",
+                    "text": "set confirm off"
+                }
+            ],
+            "preLaunchTask": "meson compile",
+            "miDebuggerPath": "/usr/bin/gdb"
+        },
+        {
+            "name": "Debug with X11 fallback",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/graphio",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [
+                {
+                    "name": "WAYLAND_DISPLAY",
+                    "value": ""
+                },
+                {
+                    "name": "GDK_BACKEND",
+                    "value": "x11"
+                }
+            ],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Включить pretty-printing",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ],
+            "preLaunchTask": "meson compile"
+        }
+    ]
+}
