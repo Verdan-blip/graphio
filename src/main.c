@@ -456,24 +456,44 @@ static void server_cursor_motion_absolute(
 }
 
 static void server_cursor_button(struct wl_listener *listener, void *data) {
-	/* This event is forwarded by the cursor when a pointer emits a button
-	 * event. */
-	struct tinywl_server *server =
-		wl_container_of(listener, server, cursor_button);
+	struct tinywl_server *server = wl_container_of(listener, server, cursor_button);
 	struct wlr_pointer_button_event *event = data;
-	/* Notify the client with pointer focus that a button press has occurred */
-	wlr_seat_pointer_notify_button(server->seat,
-			event->time_msec, event->button, event->state);
+
+	wlr_seat_pointer_notify_button(
+		server->seat,
+		event->time_msec, 
+		event->button, 
+		event->state
+	);
+
 	if (event->state == WL_POINTER_BUTTON_STATE_RELEASED) {
-		/* If you released any buttons, we exit interactive move/resize mode. */
 		reset_cursor_mode(server);
 	} else {
 		/* Focus that client if the button was _pressed_ */
 		double sx, sy;
+		printf("%f, %f", sx, sy);
 		struct wlr_surface *surface = NULL;
-		struct tinywl_toplevel *toplevel = desktop_toplevel_at(server,
-				server->cursor->x, server->cursor->y, &surface, &sx, &sy);
-		focus_toplevel(toplevel);
+		struct tinywl_toplevel *toplevel = desktop_toplevel_at(
+			server,
+			server->cursor->x, 
+			server->cursor->y, 
+			&surface, 
+			&sx, &sy
+		);
+
+		if (toplevel == NULL) {
+			struct tinywl_output *output;
+			wl_list_for_each(output, &server->outputs, link) {
+				g_dock_consume_cursor_button_event(
+					output->dock_panel, 
+					server->cursor->x, 
+					server->cursor->y, 
+					event
+				);
+			}
+		} else {
+			focus_toplevel(toplevel);
+		}
 	}
 }
 

@@ -8,6 +8,7 @@
 #include <wlr/types/wlr_scene.h>
 #include <wlr/types/wlr_output.h>
 #include <wlr/types/wlr_output_layout.h>
+#include <wlr/types/wlr_pointer.h>
 
 #include "../include/utils.h"
 #include "../include/g-dock.h"
@@ -141,6 +142,7 @@ struct g_dock_app* g_dock_app_create(
     struct g_dock_app *app = calloc(1, sizeof(struct g_dock_app));
     app->id = strdup(app_id),
     app->title = strdup(app_title);
+    app->cmd = strdup(app_exec_command);
     
     char* icon_path = g_icon_path_find_by_app_id(app_id);
 
@@ -164,5 +166,46 @@ void g_dock_on_render_pass(struct g_dock_panel *panel, struct wlr_render_pass *p
     struct g_dock_app *app;
 	wl_list_for_each(app, &panel->apps, link) {
 		g_dock_app_on_render_pass(app, pass);
+	}
+}
+
+bool g_dock_app_consume_cursor_button_event(
+    struct g_dock_app *app, 
+    double x, 
+    double y, 
+    struct wlr_pointer_button_event *event
+) {
+    if (event->state == WL_POINTER_BUTTON_STATE_PRESSED) {
+        if (x >= app->pos_x && 
+            x <= app->pos_x + app->icon->width &&
+            y >= app->pos_y && 
+            y <= app->pos_y + app->icon->height
+        ) {
+            g_dock_app_launch(app);
+            return true;
+        }
+    }
+    return false;
+}
+
+bool g_dock_consume_cursor_button_event(
+    struct g_dock_panel *panel, 
+    double x, 
+    double y, 
+    struct wlr_pointer_button_event *event
+) {
+    struct g_dock_app *app;
+    wl_list_for_each(app, &panel->apps, link) {
+        if (g_dock_app_consume_cursor_button_event(app, x, y, event)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// Launch
+void g_dock_app_launch(const struct g_dock_app *app) {
+    if (fork() == 0) {
+		execl("/bin/sh", "/bin/sh", "-c", app->cmd, (void *)NULL);
 	}
 }
