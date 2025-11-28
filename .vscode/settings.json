@@ -10,6 +10,13 @@
         "wlr_buffer.h": "c",
         "wlr_renderer.h": "c",
         "transform.h": "c",
-        "pass.h": "c"
+        "pass.h": "c",
+        "stdbool.h": "c",
+        "unistd.h": "c",
+        "wlr_xcursor_manager.h": "c",
+        "g-cursor.h": "c",
+        "wlr_input_device.h": "c",
+        "pixman.h": "c",
+        "wlr_output.h": "c"
     }
 }
