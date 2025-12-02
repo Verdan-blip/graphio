@@ -17,6 +17,9 @@
         "g-cursor.h": "c",
         "wlr_input_device.h": "c",
         "pixman.h": "c",
-        "wlr_output.h": "c"
+        "wlr_output.h": "c",
+        "stdint.h": "c",
+        "drm.h": "c",
+        "g-seat.h": "c"
     }
 }

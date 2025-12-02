@@ -18,6 +18,7 @@
 #include "../include/g-server.h"
 #include "../include/g-cursor.h"
 #include "../include/g-output.h"
+#include "../include/g-seat.h"
 
 struct g_server* g_server_create() {
     struct g_server *server = calloc(1, sizeof(struct g_server));
@@ -50,7 +51,7 @@ struct g_server* g_server_create() {
 
     server->allocator = wlr_allocator_autocreate(server->backend, server->renderer);
 	if (!server->allocator) {
-		wlr_log(WLR_ERROR, "failed to create allocator");
+		wlr_log(WLR_ERROR, "Failed to create allocator");
 		return NULL;
 	}
 
@@ -60,8 +61,12 @@ struct g_server* g_server_create() {
     wl_list_init(&server->outputs);
 
     // Graphio Cursor
-    struct g_cursor *cursor = g_cursor_create(server->output_layout);
+    struct g_cursor *cursor = g_cursor_create(server);
     server->cursor = cursor;
+
+    // Seat
+    struct g_seat *seat = g_seat_create(server);
+    server->seat = seat;
 
     // Listeners
     server->new_input_listener.notify = g_server_on_new_input;
@@ -96,7 +101,10 @@ void g_server_run(struct g_server *server) {
 
 void g_server_destroy(struct g_server *server) {
     wl_display_destroy_clients(server->display);
+
+    // Graphio structures
     g_cursor_destroy(server->cursor);
+    g_seat_destroy(server->seat);
 
     wl_list_remove(&server->new_output_listener.link);
     wl_list_remove(&server->new_input_listener.link);
@@ -113,12 +121,23 @@ void g_server_on_new_output(struct wl_listener *listener, void *data) {
     struct g_server *server = wl_container_of(listener, server, new_output_listener);
     struct wlr_output *wlr_output = data;
 
-    struct g_output *output = g_output_create(wlr_output, server->allocator, server->renderer);
+    struct g_output *output = g_output_create(wlr_output, server);
     wl_list_insert(&server->outputs, &output->link);
 
     output->server = server;
 }
 
 void g_server_on_new_input(struct wl_listener *listener, void *data) {
+    struct g_server *server = wl_container_of(listener, server, new_input_listener);
+    struct wlr_input_device *device = data;
 
+    switch (device->type) {
+        case WLR_INPUT_DEVICE_POINTER:
+            wlr_cursor_attach_input_device(server->cursor->wlr_cursor, device);
+            break;
+        default:
+            break;
+    }
+
+    wlr_seat_set_capabilities(server->seat->wlr_seat, WL_SEAT_CAPABILITY_POINTER);
 }

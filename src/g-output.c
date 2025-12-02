@@ -1,19 +1,20 @@
 #define _POSIX_C_SOURCE 200112L
+#include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <time.h>
 #include <pixman.h>
 #include <pixman-1/pixman.h>
+#include <wlr/backend.h>
 #include <wlr/render/allocator.h>
 #include <wlr/render/wlr_renderer.h>
+#include <wlr/types/wlr_output.h>
 #include <wlr/render/pass.h>
+#include <wlr/util/log.h>
 #include "../include/g-output.h"
 
-struct g_output* g_output_create(
-    struct wlr_output *wlr_output,
-    struct wlr_allocator *allocator,
-    struct wlr_renderer *renderer
-) {
-	wlr_output_init_render(wlr_output, allocator, renderer);
+struct g_output* g_output_create(struct wlr_output *wlr_output, struct g_server *server) {
+	wlr_output_init_render(wlr_output, server->allocator, server->renderer);
 
 	struct wlr_output_state state;
 	wlr_output_state_init(&state);
@@ -27,7 +28,10 @@ struct g_output* g_output_create(
 	wlr_output_commit_state(wlr_output, &state);
 	wlr_output_state_finish(&state);
 
-    // Allocata memory
+    // Add to output layout
+    wlr_output_layout_add_auto(server->output_layout, wlr_output);
+
+    // Allocate memory
     struct g_output *output = calloc(1, sizeof(struct g_output));
 	output->wlr_output = wlr_output;
 
@@ -36,7 +40,7 @@ struct g_output* g_output_create(
 	wl_signal_add(&wlr_output->events.frame, &output->frame_listener);
 
     output->request_state_listener.notify = g_output_on_request_state;
-    wl_signal_add(&wlr_output->events.frame, &output->request_state_listener);
+    wl_signal_add(&wlr_output->events.request_state, &output->request_state_listener);
 
 	output->destroy_listener.notify = g_output_on_destroy;
 	wl_signal_add(&wlr_output->events.destroy, &output->destroy_listener);
@@ -46,6 +50,9 @@ struct g_output* g_output_create(
 
 void g_output_on_new_frame(struct wl_listener *listener, void *data) {
     struct g_output *output = wl_container_of(listener, output, frame_listener);
+    struct g_server *server = output->server;
+
+    if (!output->wlr_output->enabled) return;
 
     struct wlr_output_state state;
     wlr_output_state_init(&state);
@@ -53,9 +60,18 @@ void g_output_on_new_frame(struct wl_listener *listener, void *data) {
     struct wlr_render_pass *pass = wlr_output_begin_render_pass(output->wlr_output, &state, NULL);
 
     if (!pass) {
-        wlr_output_state_finish(&state);
+        wlr_output_state_finish(&state); 
         return;
     }
+
+    // Wallpaper
+    wlr_render_pass_add_rect(pass, &(struct wlr_render_rect_options) {
+        .color = { 0.3f, 0.2f, 0.1f, 1.0f },
+        .box = { 0, 0, output->wlr_output->width, output->wlr_output->height }
+    });
+
+    // Cursor
+    g_cursor_on_render_pass(server->cursor, pass);
 
     wlr_render_pass_submit(pass);
 
@@ -66,9 +82,6 @@ void g_output_on_new_frame(struct wl_listener *listener, void *data) {
 
     wlr_output_commit_state(output->wlr_output, &state);
     wlr_output_state_finish(&state);
-
-    struct timespec now;
-    clock_gettime(CLOCK_MONOTONIC, &now);
 }
 
 void g_output_on_request_state(struct wl_listener *listener, void *data) {
@@ -80,6 +93,8 @@ void g_output_on_request_state(struct wl_listener *listener, void *data) {
 
 void g_output_on_destroy(struct wl_listener *listener, void *data) {
     struct g_output *output = wl_container_of(listener, output, destroy_listener);
+
+    wlr_output_layout_remove(output->server->output_layout, output->wlr_output);
 
 	wl_list_remove(&output->frame_listener.link);
     wl_list_remove(&output->request_state_listener.link);

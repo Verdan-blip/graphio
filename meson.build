@@ -55,6 +55,7 @@ sources = [
   'src/g-output.c',
   'src/g-cursor.c',
   'src/g-server.c',
+  'src/g-seat.c',
   xdg_shell_protocol_h,
   xdg_shell_client_protocol_h
 ]

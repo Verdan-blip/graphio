@@ -19,8 +19,7 @@ struct g_output {
 
 struct g_output* g_output_create(
     struct wlr_output *wlr_output,
-    struct wlr_allocator *allocator,
-    struct wlr_renderer *renderer
+    struct g_server *server
 );
 
 void g_output_on_new_frame(struct wl_listener *listener, void *data);

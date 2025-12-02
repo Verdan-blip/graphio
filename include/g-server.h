@@ -4,7 +4,9 @@
 #include <wlr/render/wlr_texture.h>
 #include <wlr/types/wlr_cursor.h>
 #include <wlr/types/wlr_output_layout.h>
+#include <wlr/types/wlr_seat.h>
 #include "../include/g-cursor.h"
+#include "../include/g-seat.h"
 
 struct g_server {
     struct wlr_backend *backend;
@@ -19,6 +21,8 @@ struct g_server {
 
 	struct g_cursor *cursor;
     struct wl_list outputs;
+
+    struct g_seat *seat;
 };
 
 struct g_server* g_server_create();
