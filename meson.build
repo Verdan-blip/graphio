@@ -48,13 +48,13 @@ xdg_shell_client_protocol_h = custom_target('xdg-shell-client-protocol.h',
   command: [wayland_scanner, 'client-header', '@INPUT@', '@OUTPUT@']
 )
 
-# Исходные файлы
 sources = [
   'src/main.c',
   'src/components/paddings.c',
   'src/g-output.c',
   'src/g-cursor.c',
   'src/g-server.c',
+  'src/g-toplevel.c',
   'src/g-seat.c',
   'src/g-icon.c',
   'src/g-dock-app.c',

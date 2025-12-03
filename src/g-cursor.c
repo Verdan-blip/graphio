@@ -8,6 +8,8 @@
 #include <drm/drm_fourcc.h>
 #include <stdio.h>
 #include "../include/g-server.h"
+#include "../include/g-output.h"
+#include "../include/g-dock-panel.h"
 #include "../include/g-cursor.h"
 
 struct g_cursor* g_cursor_create(struct g_server *server) {
@@ -79,8 +81,6 @@ void g_cursor_on_motion(struct wl_listener *listener, void *data) {
     struct g_cursor *cursor = wl_container_of(listener, cursor, cursor_motion_listener);
     struct wlr_pointer_motion_event *event = data;
 
-    wlr_log(WLR_INFO, "%f, %f", event->delta_x, event->delta_y);
-
     wlr_cursor_move(cursor->wlr_cursor, &event->pointer->base, event->delta_x, event->delta_y);
 }
 
@@ -92,7 +92,26 @@ void g_cursor_on_absolute_motion(struct wl_listener *listener, void *data) {
 }
 
 void g_cursor_on_button(struct wl_listener *listener, void *data) {
+    struct g_cursor *cursor = wl_container_of(listener, cursor, cursor_button_listener);
+    struct g_server *server = cursor->server;
 
+	struct wlr_pointer_button_event *event = data;
+
+    wlr_seat_pointer_notify_button(
+		server->seat->wlr_seat,
+		event->time_msec, 
+		event->button, 
+		event->state
+	);
+
+    struct g_output *output;
+    wl_list_for_each(output, &server->outputs, link) {
+        g_dock_panel_consume_cursor_button_event(
+            output->panel, 
+            cursor->wlr_cursor->x, cursor->wlr_cursor->y, 
+            event
+        );
+    }
 }
 
 void g_cursor_on_axis(struct wl_listener *listener, void *data) {

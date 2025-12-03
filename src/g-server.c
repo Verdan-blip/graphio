@@ -13,10 +13,12 @@
 #include <wlr/types/wlr_keyboard.h>
 #include <wlr/types/wlr_cursor.h>
 #include <wlr/types/wlr_output_layout.h>
+#include <wlr/types/wlr_compositor.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/render/allocator.h>
 #include "../include/g-dock-app.h"
 #include "../include/g-dock-panel.h"
+#include "../include/g-toplevel.h"
 #include "../include/g-server.h"
 #include "../include/g-cursor.h"
 #include "../include/g-output.h"
@@ -27,25 +29,25 @@ struct g_server* g_server_create() {
 
     server->display = wl_display_create();
     if (!server->display) {
-        wlr_log(WLR_ERROR, "Failed to create display");
+        wlr_log(WLR_ERROR, "Failed to create wlr_display");
         return NULL;
     }
 
     struct wl_event_loop *loop = wl_display_get_event_loop(server->display);
     if (!loop) {
-        wlr_log(WLR_ERROR, "Failed to get event loop from display");
+        wlr_log(WLR_ERROR, "Failed to get event loop from wlr_display");
         return NULL;
     }
 
     server->backend = wlr_backend_autocreate(loop, NULL);
     if (!server->backend) {
-        wlr_log(WLR_ERROR, "Failed to create backend");
+        wlr_log(WLR_ERROR, "Failed to create wlr_backend");
         return NULL;
     }
 
     server->renderer = wlr_renderer_autocreate(server->backend);
     if (!server->renderer) {
-        wlr_log(WLR_ERROR, "Failed to create renderer");
+        wlr_log(WLR_ERROR, "Failed to create wlr_renderer");
         return NULL;
     }
 
@@ -53,14 +55,24 @@ struct g_server* g_server_create() {
 
     server->allocator = wlr_allocator_autocreate(server->backend, server->renderer);
 	if (!server->allocator) {
-		wlr_log(WLR_ERROR, "Failed to create allocator");
+		wlr_log(WLR_ERROR, "Failed to create wlr_allocator");
 		return NULL;
 	}
 
+    struct wlr_compositor *compositor = wlr_compositor_create(server->display, 5, server->renderer);
+    if (!compositor) {
+        wlr_log(WLR_ERROR, "Failed to create wlr_compositor");
+		return NULL;
+    }
+
     server->output_layout = wlr_output_layout_create(server->display);
+
+    server->xdg_shell = wlr_xdg_shell_create(server->display, 3);
+
 
     // Prepare lists
     wl_list_init(&server->outputs);
+    wl_list_init(&server->toplevels);
 
     // Graphio Cursor
     struct g_cursor *cursor = g_cursor_create(server);
@@ -76,6 +88,9 @@ struct g_server* g_server_create() {
 
     server->new_output_listener.notify = g_server_on_new_output;
     wl_signal_add(&server->backend->events.new_output, &server->new_output_listener);
+
+    server->new_toplevel_listener.notify = g_server_on_new_toplevel;
+    wl_signal_add(&server->xdg_shell->events.new_toplevel, &server->new_toplevel_listener);
 
     return server;
 }
@@ -134,9 +149,11 @@ void g_server_on_new_output(struct wl_listener *listener, void *data) {
 
     struct g_dock_app *firefox_app = g_dock_app_create(output, "firefox", "Firefox", "/usr/bin/firefox");
     struct g_dock_app *gimp_app = g_dock_app_create(output, "gimp", "Gimp", "/usr/bin/gimp");
+    struct g_dock_app *weston_terminal_app = g_dock_app_create(output, "weston-terminal", "Terminal", "/usr/bin/weston-terminal");
 
     g_dock_panel_add_app(panel, firefox_app);
     g_dock_panel_add_app(panel, gimp_app);
+    g_dock_panel_add_app(panel, weston_terminal_app);
 }
 
 void g_server_on_new_input(struct wl_listener *listener, void *data) {
@@ -152,4 +169,12 @@ void g_server_on_new_input(struct wl_listener *listener, void *data) {
     }
 
     wlr_seat_set_capabilities(server->seat->wlr_seat, WL_SEAT_CAPABILITY_POINTER);
+}
+
+void g_server_on_new_toplevel(struct wl_listener *listener, void *data) {
+    struct g_server *server = wl_container_of(listener, server, new_toplevel_listener);
+    struct wlr_xdg_toplevel *xdg_toplevel = data;
+
+    struct g_toplevel *toplevel = g_toplevel_create(server, xdg_toplevel);
+    wl_list_insert(&server->toplevels, &toplevel->link);
 }

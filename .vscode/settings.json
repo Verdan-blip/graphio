@@ -20,6 +20,25 @@
         "wlr_output.h": "c",
         "stdint.h": "c",
         "drm.h": "c",
-        "g-seat.h": "c"
+        "g-seat.h": "c",
+        "wlr_cursor.h": "c",
+        "g-dock-panel.h": "c",
+        "bit": "c",
+        "charconv": "c",
+        "deque": "c",
+        "string": "c",
+        "unordered_map": "c",
+        "vector": "c",
+        "optional": "c",
+        "format": "c",
+        "ios": "c",
+        "istream": "c",
+        "limits": "c",
+        "ranges": "c",
+        "streambuf": "c",
+        "system_error": "c",
+        "type_traits": "c",
+        "tuple": "c",
+        "variant": "c"
     }
 }

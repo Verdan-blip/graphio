@@ -14,6 +14,7 @@
 #include "../include/g-output.h"
 #include "../include/g-dock-app.h"
 #include "../include/g-dock-panel.h"
+#include "../include/g-toplevel.h"
 
 struct g_output* g_output_create(struct wlr_output *wlr_output, struct g_server *server) {
 	wlr_output_init_render(wlr_output, server->allocator, server->renderer);
@@ -71,6 +72,12 @@ void g_output_on_new_frame(struct wl_listener *listener, void *data) {
         .color = { 0.3f, 0.2f, 0.1f, 1.0f },
         .box = { 0, 0, output->wlr_output->width, output->wlr_output->height }
     });
+
+    // Toplevel
+    struct g_toplevel *toplevel;
+    wl_list_for_each(toplevel, &server->toplevels, link) {
+        g_toplevel_on_render_pass(toplevel, pass);
+    }
 
     // Dock panel
     g_dock_panel_on_render_pass(output->panel, pass);
