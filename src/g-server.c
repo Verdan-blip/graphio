@@ -15,6 +15,8 @@
 #include <wlr/types/wlr_output_layout.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/render/allocator.h>
+#include "../include/g-dock-app.h"
+#include "../include/g-dock-panel.h"
 #include "../include/g-server.h"
 #include "../include/g-cursor.h"
 #include "../include/g-output.h"
@@ -122,9 +124,19 @@ void g_server_on_new_output(struct wl_listener *listener, void *data) {
     struct wlr_output *wlr_output = data;
 
     struct g_output *output = g_output_create(wlr_output, server);
+    output->server = server;
+
     wl_list_insert(&server->outputs, &output->link);
 
-    output->server = server;
+    // Dock panel
+    struct g_dock_panel *panel = g_dock_panel_create(output);
+    output->panel = panel;
+
+    struct g_dock_app *firefox_app = g_dock_app_create(output, "firefox", "Firefox", "/usr/bin/firefox");
+    struct g_dock_app *gimp_app = g_dock_app_create(output, "gimp", "Gimp", "/usr/bin/gimp");
+
+    g_dock_panel_add_app(panel, firefox_app);
+    g_dock_panel_add_app(panel, gimp_app);
 }
 
 void g_server_on_new_input(struct wl_listener *listener, void *data) {

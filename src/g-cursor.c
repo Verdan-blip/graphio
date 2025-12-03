@@ -87,8 +87,6 @@ void g_cursor_on_motion(struct wl_listener *listener, void *data) {
 void g_cursor_on_absolute_motion(struct wl_listener *listener, void *data) {
 	struct g_cursor *cursor = wl_container_of(listener, cursor, cursor_motion_absolute_listener);
 	struct wlr_pointer_motion_absolute_event *event = data;
-
-    wlr_log(WLR_INFO, "%f, %f", event->x, event->y);
     
 	wlr_cursor_warp_absolute(cursor->wlr_cursor, &event->pointer->base, event->x, event->y);
 }

@@ -56,6 +56,9 @@ sources = [
   'src/g-cursor.c',
   'src/g-server.c',
   'src/g-seat.c',
+  'src/g-icon.c',
+  'src/g-dock-app.c',
+  'src/g-dock-panel.c',
   xdg_shell_protocol_h,
   xdg_shell_client_protocol_h
 ]

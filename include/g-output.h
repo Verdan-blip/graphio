@@ -9,6 +9,7 @@ struct g_output {
 	struct wl_list link;
 
     struct g_server *server;
+    struct g_dock_panel *panel;
 
     struct wlr_output *wlr_output;
 

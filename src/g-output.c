@@ -12,6 +12,8 @@
 #include <wlr/render/pass.h>
 #include <wlr/util/log.h>
 #include "../include/g-output.h"
+#include "../include/g-dock-app.h"
+#include "../include/g-dock-panel.h"
 
 struct g_output* g_output_create(struct wlr_output *wlr_output, struct g_server *server) {
 	wlr_output_init_render(wlr_output, server->allocator, server->renderer);
@@ -70,6 +72,9 @@ void g_output_on_new_frame(struct wl_listener *listener, void *data) {
         .box = { 0, 0, output->wlr_output->width, output->wlr_output->height }
     });
 
+    // Dock panel
+    g_dock_panel_on_render_pass(output->panel, pass);
+
     // Cursor
     g_cursor_on_render_pass(server->cursor, pass);
 
@@ -93,6 +98,8 @@ void g_output_on_request_state(struct wl_listener *listener, void *data) {
 
 void g_output_on_destroy(struct wl_listener *listener, void *data) {
     struct g_output *output = wl_container_of(listener, output, destroy_listener);
+
+    g_dock_panel_destroy(output->panel);
 
     wlr_output_layout_remove(output->server->output_layout, output->wlr_output);
 
