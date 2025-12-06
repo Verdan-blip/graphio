@@ -27,6 +27,8 @@ struct g_toplevel {
     struct wl_listener commit_listener;
     struct wl_listener request_move_listener;
     struct wl_listener request_resize_listener;
+    struct wl_listener request_maximize_listener;
+    struct wl_listener request_fullscreen_listener;
 };
 
 struct g_toplevel* g_toplevel_create(struct g_server *server, struct wlr_xdg_toplevel *xdg_toplevel);
@@ -38,8 +40,19 @@ void g_toplevel_on_unmap(struct wl_listener *listener, void *data);
 void g_toplevel_on_commit(struct wl_listener *listener, void *data);
 void g_toplevel_on_request_move(struct wl_listener *listener, void *data);
 void g_toplevel_on_request_resize(struct wl_listener *listener, void *data);
+void g_toplevel_on_request_maximize(struct wl_listener *listener, void *data);
+void g_toplevel_on_request_fullscreen(struct wl_listener *listener, void *data);
 
 // Contract
 void g_toplevel_on_render_pass(struct g_toplevel *toplevel, struct wlr_render_pass *pass);
+
+// Utils
+struct g_toplevel* g_toplevel_at(
+    struct wl_list *toplevels, 
+    double x, double y,
+    double *surface_x, double *surface_y
+);
+
+void g_toplevel_set_focused(struct g_toplevel *toplevel);
 
 #endif

@@ -1,4 +1,7 @@
 #include <stdlib.h>
+#include <wayland-server-core.h>
+#include <wayland-server-protocol.h>
+#include <wayland-util.h>
 #include <wlr/types/wlr_cursor.h>
 #include <wlr/types/wlr_xcursor_manager.h>
 #include <wlr/types/wlr_output_layout.h>
@@ -6,11 +9,13 @@
 #include <wlr/interfaces/wlr_pointer.h>
 #include <wlr/util/log.h>
 #include <drm/drm_fourcc.h>
-#include <stdio.h>
 #include "../include/g-server.h"
 #include "../include/g-output.h"
 #include "../include/g-dock-panel.h"
 #include "../include/g-cursor.h"
+#include "../include/g-toplevel.h"
+#include "../include/g-toplevel-interaction.h"
+#include "include/g-popup.h"
 
 struct g_cursor* g_cursor_create(struct g_server *server) {
     struct g_cursor *cursor = calloc(1, sizeof(struct g_cursor));
@@ -77,11 +82,81 @@ void g_cursor_destroy(struct g_cursor *cursor) {
     free(cursor);
 }
 
+static void g_cursor_on_move(struct g_cursor *cursor,uint32_t time) {
+    struct g_server *server = cursor->server;
+    struct g_toplevel_interaction *interaction = server->toplevel_interaction;
+
+    if (interaction->grabbed_toplevel) {
+        interaction->grabbed_toplevel->pos_x = cursor->wlr_cursor->x - interaction->grab_pos_x;
+        interaction->grabbed_toplevel->pos_y = cursor->wlr_cursor->y - interaction->grab_pos_y;
+    }
+
+    if (!wl_list_empty(&server->popups)) {
+        double surface_x, surface_y;
+        
+        struct g_popup *popup = g_popup_at(
+            &server->toplevels,
+            cursor->wlr_cursor->x,
+            cursor->wlr_cursor->y,
+            &surface_x, &surface_y
+        );
+
+        if (popup) {
+            if (popup->surface) {
+                wlr_seat_pointer_notify_enter(
+                    server->seat->wlr_seat, 
+                    popup->surface, 
+                    cursor->wlr_cursor->x, 
+                    cursor->wlr_cursor->y
+                );
+                wlr_seat_pointer_notify_motion(
+                    server->seat->wlr_seat,
+                    time,
+                    surface_x, surface_y
+                );
+                
+                return;
+            }
+        }
+    }
+
+    if (!wl_list_empty(&server->toplevels)) {
+        double surface_x, surface_y;
+        
+        struct g_toplevel *toplevel = g_toplevel_at(
+            &server->toplevels,
+            cursor->wlr_cursor->x,
+            cursor->wlr_cursor->y,
+            &surface_x, &surface_y
+        );
+
+        if (toplevel) {
+            if (toplevel->surface) {
+                wlr_seat_pointer_notify_enter(
+                    server->seat->wlr_seat, 
+                    toplevel->surface, 
+                    cursor->wlr_cursor->x, 
+                    cursor->wlr_cursor->y
+                );
+                wlr_seat_pointer_notify_motion(
+                    server->seat->wlr_seat,
+                    time,
+                    surface_x, surface_y
+                );
+            } else {
+                wlr_seat_pointer_clear_focus(server->seat->wlr_seat);
+            }
+        }
+    }
+}
+
 void g_cursor_on_motion(struct wl_listener *listener, void *data) {
     struct g_cursor *cursor = wl_container_of(listener, cursor, cursor_motion_listener);
     struct wlr_pointer_motion_event *event = data;
 
     wlr_cursor_move(cursor->wlr_cursor, &event->pointer->base, event->delta_x, event->delta_y);
+
+    g_cursor_on_move(cursor, event->time_msec);
 }
 
 void g_cursor_on_absolute_motion(struct wl_listener *listener, void *data) {
@@ -89,6 +164,8 @@ void g_cursor_on_absolute_motion(struct wl_listener *listener, void *data) {
 	struct wlr_pointer_motion_absolute_event *event = data;
     
 	wlr_cursor_warp_absolute(cursor->wlr_cursor, &event->pointer->base, event->x, event->y);
+
+    g_cursor_on_move(cursor, event->time_msec);
 }
 
 void g_cursor_on_button(struct wl_listener *listener, void *data) {
@@ -106,11 +183,24 @@ void g_cursor_on_button(struct wl_listener *listener, void *data) {
 
     struct g_output *output;
     wl_list_for_each(output, &server->outputs, link) {
-        g_dock_panel_consume_cursor_button_event(
+        bool consumed = g_dock_panel_consume_cursor_button_event(
             output->panel, 
             cursor->wlr_cursor->x, cursor->wlr_cursor->y, 
             event
         );
+
+        if (consumed) return;
+    }
+
+    switch (event->state) {
+        case WL_POINTER_BUTTON_STATE_RELEASED:
+            server->toplevel_interaction->grabbed_toplevel = NULL;
+            break;
+        case WL_POINTER_BUTTON_STATE_PRESSED:
+            
+            break;
+        default:
+            break;
     }
 }
 
@@ -124,6 +214,10 @@ void g_cursor_on_new_frame(struct wl_listener *listener, void *data) {
 
 // Render contract
 void g_cursor_on_render_pass(struct g_cursor *cursor, struct wlr_render_pass *pass) {
+    if (!cursor) {
+        wlr_log(WLR_INFO, "Graphio cursor has not been attached yet, skipping");
+    }
+
     const float cursor_alpha = 1.0f;
 
     wlr_render_pass_add_texture(pass, &(struct wlr_render_texture_options) {

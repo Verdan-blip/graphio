@@ -1,7 +1,6 @@
 #define _POSIX_C_SOURCE 200112L
+#include <wayland-util.h>
 #include <stdlib.h>
-#include <stdio.h>
-#include <time.h>
 #include <stdbool.h>
 #include <unistd.h>
 #include <wlr/util/log.h>
@@ -14,12 +13,17 @@
 #include <wlr/types/wlr_cursor.h>
 #include <wlr/types/wlr_output_layout.h>
 #include <wlr/types/wlr_compositor.h>
+#include <wlr/types/wlr_subcompositor.h>
+#include <wlr/types/wlr_xdg_decoration_v1.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/render/allocator.h>
 #include "../include/g-dock-app.h"
 #include "../include/g-dock-panel.h"
+#include "../include/g-toplevel-interaction.h"
 #include "../include/g-toplevel.h"
+#include "../include/g-popup.h"
 #include "../include/g-server.h"
+#include "../include/g-keyboard.h"
 #include "../include/g-cursor.h"
 #include "../include/g-output.h"
 #include "../include/g-seat.h"
@@ -65,22 +69,33 @@ struct g_server* g_server_create() {
 		return NULL;
     }
 
+    struct wlr_subcompositor *subcompositor = wlr_subcompositor_create(server->display);
+    if (!subcompositor) {
+        wlr_log(WLR_ERROR, "Failed to create wlr_subcompositor");
+		return NULL;
+    }
+
     server->output_layout = wlr_output_layout_create(server->display);
-
+    
     server->xdg_shell = wlr_xdg_shell_create(server->display, 3);
-
 
     // Prepare lists
     wl_list_init(&server->outputs);
     wl_list_init(&server->toplevels);
-
-    // Graphio Cursor
-    struct g_cursor *cursor = g_cursor_create(server);
-    server->cursor = cursor;
+    wl_list_init(&server->popups);
+    wl_list_init(&server->keyboards);
 
     // Seat
     struct g_seat *seat = g_seat_create(server);
     server->seat = seat;
+
+    // Toplevel interaction
+    struct g_toplevel_interaction *interaction = g_toplevel_interaction_create();
+    server->toplevel_interaction = interaction;
+
+    // Graphio cursor
+    struct g_cursor *cursor = g_cursor_create(server);
+    server->cursor = cursor;
 
     // Listeners
     server->new_input_listener.notify = g_server_on_new_input;
@@ -89,8 +104,12 @@ struct g_server* g_server_create() {
     server->new_output_listener.notify = g_server_on_new_output;
     wl_signal_add(&server->backend->events.new_output, &server->new_output_listener);
 
+    // XDG Protocol
     server->new_toplevel_listener.notify = g_server_on_new_toplevel;
     wl_signal_add(&server->xdg_shell->events.new_toplevel, &server->new_toplevel_listener);
+
+    server->new_popup_listener.notify = g_server_on_new_popup;
+    wl_signal_add(&server->xdg_shell->events.new_popup, &server->new_popup_listener);
 
     return server;
 }
@@ -111,17 +130,18 @@ void g_server_run(struct g_server *server) {
 	}
 
 	setenv("WAYLAND_DISPLAY", socket, true);
-	wlr_log(WLR_INFO, "Running Wayland compositor on WAYLAND_DISPLAY=%s", socket);
 
+	wlr_log(WLR_INFO, "Running Wayland compositor on WAYLAND_DISPLAY=%s", socket);
+    
 	wl_display_run(server->display);
 }
 
 void g_server_destroy(struct g_server *server) {
     wl_display_destroy_clients(server->display);
 
-    // Graphio structures
     g_cursor_destroy(server->cursor);
     g_seat_destroy(server->seat);
+    g_toplevel_interaction_destroy(server->toplevel_interaction);
 
     wl_list_remove(&server->new_output_listener.link);
     wl_list_remove(&server->new_input_listener.link);
@@ -161,14 +181,24 @@ void g_server_on_new_input(struct wl_listener *listener, void *data) {
     struct wlr_input_device *device = data;
 
     switch (device->type) {
-        case WLR_INPUT_DEVICE_POINTER:
+        case WLR_INPUT_DEVICE_POINTER: {
             wlr_cursor_attach_input_device(server->cursor->wlr_cursor, device);
             break;
+        }
+        case WLR_INPUT_DEVICE_KEYBOARD: {
+            struct g_keyboard *keyboard = g_keyboard_create(server, device);
+            wl_list_insert(&server->keyboards, &keyboard->link);
+            break;
+        }
         default:
             break;
     }
 
-    wlr_seat_set_capabilities(server->seat->wlr_seat, WL_SEAT_CAPABILITY_POINTER);
+    uint32_t caps = WL_SEAT_CAPABILITY_POINTER;
+	if (!wl_list_empty(&server->keyboards)) {
+		caps |= WL_SEAT_CAPABILITY_KEYBOARD;
+	}
+	wlr_seat_set_capabilities(server->seat->wlr_seat, caps);
 }
 
 void g_server_on_new_toplevel(struct wl_listener *listener, void *data) {
@@ -177,4 +207,12 @@ void g_server_on_new_toplevel(struct wl_listener *listener, void *data) {
 
     struct g_toplevel *toplevel = g_toplevel_create(server, xdg_toplevel);
     wl_list_insert(&server->toplevels, &toplevel->link);
+}
+
+void g_server_on_new_popup(struct wl_listener *listener, void *data) {
+    struct g_server *server = wl_container_of(listener, server, new_popup_listener);
+    struct wlr_xdg_popup *xdg_popup = data;
+
+    struct g_popup *popup = g_popup_create(server, xdg_popup);
+    wl_list_insert(&server->popups, &popup->link);
 }

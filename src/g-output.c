@@ -1,8 +1,7 @@
 #define _POSIX_C_SOURCE 200112L
-#include <stdio.h>
+#include "include/g-server.h"
 #include <stdlib.h>
 #include <stdint.h>
-#include <time.h>
 #include <pixman.h>
 #include <pixman-1/pixman.h>
 #include <wlr/backend.h>
@@ -15,6 +14,7 @@
 #include "../include/g-dock-app.h"
 #include "../include/g-dock-panel.h"
 #include "../include/g-toplevel.h"
+#include "../include/g-popup.h"
 
 struct g_output* g_output_create(struct wlr_output *wlr_output, struct g_server *server) {
 	wlr_output_init_render(wlr_output, server->allocator, server->renderer);
@@ -24,7 +24,7 @@ struct g_output* g_output_create(struct wlr_output *wlr_output, struct g_server 
 	wlr_output_state_set_enabled(&state, true);
 
 	struct wlr_output_mode *mode = wlr_output_preferred_mode(wlr_output);
-	if (mode != NULL) {
+	if (mode) {
 		wlr_output_state_set_mode(&state, mode);
 	}
 
@@ -73,10 +73,16 @@ void g_output_on_new_frame(struct wl_listener *listener, void *data) {
         .box = { 0, 0, output->wlr_output->width, output->wlr_output->height }
     });
 
-    // Toplevel
+    // Toplevels
     struct g_toplevel *toplevel;
     wl_list_for_each(toplevel, &server->toplevels, link) {
         g_toplevel_on_render_pass(toplevel, pass);
+    }
+
+    // Popups
+    struct g_popup *popup;
+    wl_list_for_each(popup, &server->popups, link) {
+        g_popup_on_render_pass(popup, pass);
     }
 
     // Dock panel
@@ -94,6 +100,19 @@ void g_output_on_new_frame(struct wl_listener *listener, void *data) {
 
     wlr_output_commit_state(output->wlr_output, &state);
     wlr_output_state_finish(&state);
+
+    struct timespec now;
+    clock_gettime(CLOCK_MONOTONIC, &now);
+
+    // Toplevels send frame done
+    wl_list_for_each(toplevel, &server->toplevels, link) {
+        wlr_surface_send_frame_done(toplevel->xdg_toplevel->base->surface, &now);
+    }
+
+    // Popups send frame done
+    wl_list_for_each(popup, &server->popups, link) {
+        wlr_surface_send_frame_done(popup->surface, &now);
+    }
 }
 
 void g_output_on_request_state(struct wl_listener *listener, void *data) {
