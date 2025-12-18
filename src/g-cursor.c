@@ -82,7 +82,7 @@ void g_cursor_destroy(struct g_cursor *cursor) {
     free(cursor);
 }
 
-static void g_cursor_on_move(struct g_cursor *cursor,uint32_t time) {
+static void g_cursor_find_and_move_toplevel_if_grabbed(struct g_cursor *cursor, uint32_t time) {
     struct g_server *server = cursor->server;
     struct g_toplevel_interaction *interaction = server->toplevel_interaction;
 
@@ -90,35 +90,10 @@ static void g_cursor_on_move(struct g_cursor *cursor,uint32_t time) {
         interaction->grabbed_toplevel->pos_x = cursor->wlr_cursor->x - interaction->grab_pos_x;
         interaction->grabbed_toplevel->pos_y = cursor->wlr_cursor->y - interaction->grab_pos_y;
     }
+}
 
-    if (!wl_list_empty(&server->popups)) {
-        double surface_x, surface_y;
-        
-        struct g_popup *popup = g_popup_at(
-            &server->toplevels,
-            cursor->wlr_cursor->x,
-            cursor->wlr_cursor->y,
-            &surface_x, &surface_y
-        );
-
-        if (popup) {
-            if (popup->surface) {
-                wlr_seat_pointer_notify_enter(
-                    server->seat->wlr_seat, 
-                    popup->surface, 
-                    cursor->wlr_cursor->x, 
-                    cursor->wlr_cursor->y
-                );
-                wlr_seat_pointer_notify_motion(
-                    server->seat->wlr_seat,
-                    time,
-                    surface_x, surface_y
-                );
-                
-                return;
-            }
-        }
-    }
+static void g_cursor_find_and_enter_toplevel_if_focused(struct g_cursor *cursor, uint32_t time) {
+    struct g_server *server = cursor->server;
 
     if (!wl_list_empty(&server->toplevels)) {
         double surface_x, surface_y;
@@ -131,7 +106,7 @@ static void g_cursor_on_move(struct g_cursor *cursor,uint32_t time) {
         );
 
         if (toplevel) {
-            if (toplevel->surface) {
+            if (toplevel->focused && toplevel->surface) {
                 wlr_seat_pointer_notify_enter(
                     server->seat->wlr_seat, 
                     toplevel->surface, 
@@ -156,7 +131,8 @@ void g_cursor_on_motion(struct wl_listener *listener, void *data) {
 
     wlr_cursor_move(cursor->wlr_cursor, &event->pointer->base, event->delta_x, event->delta_y);
 
-    g_cursor_on_move(cursor, event->time_msec);
+    g_cursor_find_and_move_toplevel_if_grabbed(cursor, event->time_msec);
+    g_cursor_find_and_enter_toplevel_if_focused(cursor, event->time_msec);
 }
 
 void g_cursor_on_absolute_motion(struct wl_listener *listener, void *data) {
@@ -165,7 +141,8 @@ void g_cursor_on_absolute_motion(struct wl_listener *listener, void *data) {
     
 	wlr_cursor_warp_absolute(cursor->wlr_cursor, &event->pointer->base, event->x, event->y);
 
-    g_cursor_on_move(cursor, event->time_msec);
+    g_cursor_find_and_move_toplevel_if_grabbed(cursor, event->time_msec);
+    g_cursor_find_and_enter_toplevel_if_focused(cursor, event->time_msec);
 }
 
 void g_cursor_on_button(struct wl_listener *listener, void *data) {
@@ -192,12 +169,22 @@ void g_cursor_on_button(struct wl_listener *listener, void *data) {
         if (consumed) return;
     }
 
+    struct g_toplevel *toplevel;
+    wl_list_for_each(toplevel, &server->toplevels, link) {
+        bool consumed = g_toplevel_consume_cursor_button_event(
+            toplevel, 
+            cursor->wlr_cursor->x, cursor->wlr_cursor->y, 
+            event
+        );
+
+        if (consumed) return;
+    }
+
     switch (event->state) {
         case WL_POINTER_BUTTON_STATE_RELEASED:
             server->toplevel_interaction->grabbed_toplevel = NULL;
             break;
-        case WL_POINTER_BUTTON_STATE_PRESSED:
-            
+        case WL_POINTER_BUTTON_STATE_PRESSED: 
             break;
         default:
             break;

@@ -77,8 +77,9 @@ void g_toplevel_on_destroy(struct wl_listener *listener, void *data) {
 
 void g_toplevel_on_map(struct wl_listener *listener, void *data) {
     struct g_toplevel *toplevel = wl_container_of(listener, toplevel, map_listener);
-    toplevel->mapped = true;
     g_toplevel_set_focused(toplevel);
+
+    toplevel->mapped = true;
 }
 
 void g_toplevel_on_unmap(struct wl_listener *listener, void *data) {
@@ -91,8 +92,8 @@ void g_toplevel_on_commit(struct wl_listener *listener, void *data) {
 
     if (toplevel->xdg_toplevel->base->initial_commit) {
         wlr_xdg_toplevel_set_size(toplevel->xdg_toplevel, 0, 0);
-        toplevel->pos_x = 100;
-        toplevel->pos_y = 100;
+        toplevel->pos_x = 0;
+        toplevel->pos_y = 0;
     }
 
     struct wlr_fbox window_geo_box;
@@ -182,6 +183,26 @@ void g_toplevel_on_render_pass(struct g_toplevel *toplevel, struct wlr_render_pa
     );
 }
 
+bool g_toplevel_consume_cursor_button_event(
+    struct g_toplevel *toplevel, 
+    double x, 
+    double y, 
+    struct wlr_pointer_button_event *event
+) {
+    if (event->state == WL_POINTER_BUTTON_STATE_PRESSED) {
+        if (x >= toplevel->pos_x && 
+            x <= toplevel->pos_x + toplevel->width &&
+            y >= toplevel->pos_y && 
+            y <= toplevel->pos_y + toplevel->height
+        ) {
+            g_toplevel_set_focused(toplevel);
+            return true;
+        }
+    }
+
+    return false;
+}
+
 // Utils
 struct g_toplevel* g_toplevel_at(
     struct wl_list *toplevels, 
@@ -218,16 +239,20 @@ void g_toplevel_set_focused(struct g_toplevel *toplevel) {
 
 	struct wlr_surface *prev_surface = seat->keyboard_state.focused_surface;
 	struct wlr_surface *surface = toplevel->xdg_toplevel->base->surface;
+    
 	if (prev_surface == surface) return;
 
     if (prev_surface) {
-		struct wlr_xdg_toplevel *prev_toplevel = wlr_xdg_toplevel_try_from_wlr_surface(prev_surface);
-		if (prev_toplevel) {
-			wlr_xdg_toplevel_set_activated(prev_toplevel, false);
+		struct wlr_xdg_toplevel *prev_xdg_toplevel = wlr_xdg_toplevel_try_from_wlr_surface(prev_surface);
+        struct g_toplevel *toplevel = wl_container_of(prev_xdg_toplevel, toplevel, xdg_toplevel);
+		if (prev_xdg_toplevel) {
+			wlr_xdg_toplevel_set_activated(prev_xdg_toplevel, false);
+            toplevel->focused = false;
 		}
 	}
 
     struct wlr_keyboard *keyboard = wlr_seat_get_keyboard(seat);
+    
     wl_list_remove(&toplevel->link);
     wl_list_insert(&server->toplevels, &toplevel->link);
 
@@ -240,4 +265,6 @@ void g_toplevel_set_focused(struct g_toplevel *toplevel) {
             &keyboard->modifiers
         );
 	}
+
+    toplevel->focused = true;
 }

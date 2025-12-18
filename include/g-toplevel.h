@@ -46,6 +46,13 @@ void g_toplevel_on_request_fullscreen(struct wl_listener *listener, void *data);
 // Contract
 void g_toplevel_on_render_pass(struct g_toplevel *toplevel, struct wlr_render_pass *pass);
 
+bool g_toplevel_consume_cursor_button_event(
+    struct g_toplevel *toplevel, 
+    double x, 
+    double y, 
+    struct wlr_pointer_button_event *event
+);
+
 // Utils
 struct g_toplevel* g_toplevel_at(
     struct wl_list *toplevels, 

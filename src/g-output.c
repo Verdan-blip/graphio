@@ -1,4 +1,6 @@
 #define _POSIX_C_SOURCE 200112L
+
+#include <wayland-util.h>
 #include "include/g-server.h"
 #include <stdlib.h>
 #include <stdint.h>
@@ -75,7 +77,7 @@ void g_output_on_new_frame(struct wl_listener *listener, void *data) {
 
     // Toplevels
     struct g_toplevel *toplevel;
-    wl_list_for_each(toplevel, &server->toplevels, link) {
+    wl_list_for_each_reverse(toplevel, &server->toplevels, link) {
         g_toplevel_on_render_pass(toplevel, pass);
     }
 

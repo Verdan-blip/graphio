@@ -27,6 +27,7 @@
 #include "../include/g-cursor.h"
 #include "../include/g-output.h"
 #include "../include/g-seat.h"
+#include <wlr/render/gles2.h>
 
 struct g_server* g_server_create() {
     struct g_server *server = calloc(1, sizeof(struct g_server));

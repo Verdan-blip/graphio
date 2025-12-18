@@ -37,7 +37,7 @@ void g_popup_on_map(struct wl_listener *listener, void *data) {
 	if (popup->xdg_popup->base->initial_commit) {
 		wlr_xdg_surface_schedule_configure(popup->xdg_popup->base);
 	}
-
+    
     popup->mapped = true;
 }
 
@@ -57,6 +57,12 @@ void g_popup_on_commit(struct wl_listener *listener, void *data) {
 	if (popup->xdg_popup->base->initial_commit) {
 		wlr_xdg_surface_schedule_configure(popup->xdg_popup->base);
 	}
+
+    struct wlr_fbox window_geo_box;
+    wlr_surface_get_buffer_source_box(popup->surface, &window_geo_box);
+
+    popup->width = window_geo_box.width;
+    popup->height = window_geo_box.height;
 }
 
 void g_popup_on_destroy(struct wl_listener *listener, void *data) {
@@ -71,12 +77,18 @@ void g_popup_on_destroy(struct wl_listener *listener, void *data) {
 	free(popup);
 }
 
-static void g_popup_on_on_each_xdg_surface(
+// Contract
+struct g_popup_render_data {
+    struct g_popup *popup;
+    struct wlr_render_pass *pass;
+};
+
+static void g_popup_on_each_xdg_surface(
     struct wlr_surface *s, 
     int sx, int sy, 
     void *data
 ) {
-    struct wlr_render_pass *pass = data;
+    struct g_popup_render_data *render_data = data;
     struct wlr_texture *texture = wlr_surface_get_texture(s);
 
     if (!texture) {
@@ -86,20 +98,28 @@ static void g_popup_on_on_each_xdg_surface(
 
     const float alpha = 1.0f;
 
-    wlr_render_pass_add_texture(pass, &(struct wlr_render_texture_options) {
+    wlr_render_pass_add_texture(render_data->pass, &(struct wlr_render_texture_options) {
         .texture = texture,
         .alpha = &alpha,
         .src_box = { 0, 0, s->current.width, s->current.height },
-        .dst_box = { sx, sy, s->current.width, s->current.height }
+        .dst_box = { 
+            render_data->popup->pos_x, 
+            render_data->popup->pos_y, 
+            s->current.width, 
+            s->current.height 
+        }
     });
 }
 
-// Contract
 void g_popup_on_render_pass(struct g_popup *popup, struct wlr_render_pass *pass) {
-    struct wlr_surface *s = popup->surface;
-    struct wlr_texture *texture = wlr_surface_get_texture(s);
-
-    wlr_xdg_surface_for_each_popup_surface(popup->xdg_popup->base, g_popup_on_on_each_xdg_surface, pass);
+    wlr_xdg_surface_for_each_surface(
+        popup->xdg_popup->base, 
+        g_popup_on_each_xdg_surface, 
+        &(struct g_popup_render_data) {
+            .popup = popup,
+            .pass = pass
+        }
+    );
 }
 
 // Utils

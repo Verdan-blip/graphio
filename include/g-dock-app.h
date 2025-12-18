@@ -24,17 +24,17 @@ struct g_dock_app* g_dock_app_create(
 
 void g_dock_app_destroy(struct g_dock_app *app);
 
+//Launch
+void g_dock_app_launch(const struct g_dock_app *app);
+
+// Contract
+void g_dock_app_on_render_pass(struct g_dock_app *app, struct wlr_render_pass *pass);
+
 bool g_dock_app_consume_cursor_button_event(
     struct g_dock_app *app, 
     double x, 
     double y, 
     struct wlr_pointer_button_event *event
 );
-
-//Launch
-void g_dock_app_launch(const struct g_dock_app *app);
-
-// Render contract
-void g_dock_app_on_render_pass(struct g_dock_app *app, struct wlr_render_pass *pass);
 
 #endif
