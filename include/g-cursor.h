@@ -10,9 +10,9 @@
 struct g_server;
 
 enum g_cursor_mode {
-	TINYWL_CURSOR_PASSTHROUGH,
-	TINYWL_CURSOR_MOVE,
-	TINYWL_CURSOR_RESIZE
+	CURSOR_PASSTHROUGH,
+	CURSOR_MOVE,
+	CURSOR_RESIZE
 };
 
 struct g_cursor {
@@ -40,6 +40,11 @@ void g_cursor_on_motion(struct wl_listener *listener, void *data);
 void g_cursor_on_button(struct wl_listener *listener, void *data);
 void g_cursor_on_axis(struct wl_listener *listener, void *data);
 void g_cursor_on_new_frame(struct wl_listener *listener, void *data);
+
+void g_cursor_set_cursor_mode_resize_horizontal(struct g_cursor *cursor);
+void g_cursor_set_cursor_mode_resize_vertical(struct g_cursor *cursor);
+void g_cursor_set_cursor_mode_move(struct g_cursor *cursor);
+void g_cursor_reset_mode(struct g_cursor *cursor);
 
 // Render contract
 void g_cursor_on_render_pass(struct g_cursor *cursor, struct wlr_render_pass *pass);

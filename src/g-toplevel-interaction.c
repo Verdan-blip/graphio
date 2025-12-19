@@ -3,11 +3,16 @@
 
 struct g_toplevel_interaction* g_toplevel_interaction_create() {
     struct g_toplevel_interaction *interaction = calloc(1, sizeof(struct g_toplevel_interaction));
+    g_toplevel_interacton_reset(interaction);
+
+    return interaction;
+}
+
+void g_toplevel_interacton_reset(struct g_toplevel_interaction* interaction) {
     interaction->grab_pos_x = 0;
     interaction->grab_pos_y = 0;
     interaction->grabbed_toplevel = NULL;
-
-    return interaction;
+    interaction->resize_edges = 0;
 }
 
 void g_toplevel_interaction_destroy(struct g_toplevel_interaction *interaction) {

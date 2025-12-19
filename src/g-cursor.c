@@ -1,3 +1,5 @@
+#include <stdbool.h>
+#include <stddef.h>
 #include <stdlib.h>
 #include <wayland-server-core.h>
 #include <wayland-server-protocol.h>
@@ -29,25 +31,11 @@ struct g_cursor* g_cursor_create(struct g_server *server) {
     wlr_cursor_attach_output_layout(cursor->wlr_cursor, server->output_layout);
 
     cursor->cursor_mgr = wlr_xcursor_manager_create(NULL, 24);
-    cursor->cursor_mode = TINYWL_CURSOR_PASSTHROUGH;
+    cursor->cursor_mode = CURSOR_PASSTHROUGH;
 
     wlr_xcursor_manager_load(cursor->cursor_mgr, 1);
 
-    struct wlr_xcursor *xcursor = wlr_xcursor_manager_get_xcursor(cursor->cursor_mgr, "left_ptr", 1);
-    struct wlr_xcursor_image *img = xcursor->images[0];
-
-    cursor->texture = wlr_texture_from_pixels(
-        server->renderer,
-        DRM_FORMAT_ARGB8888,
-        img->width * 4,
-        img->width,
-        img->height,
-        img->buffer
-    );
-
-    if (!cursor->texture) {
-        wlr_log(WLR_ERROR, "Failed to load xcursor texture");
-    }
+    g_cursor_reset_mode(cursor);
 
     cursor->cursor_motion_listener.notify = g_cursor_on_motion;
     wl_signal_add(&cursor->wlr_cursor->events.motion, &cursor->cursor_motion_listener);
@@ -92,6 +80,58 @@ static void g_cursor_find_and_move_toplevel_if_grabbed(struct g_cursor *cursor, 
     }
 }
 
+static void g_cursor_find_and_resize_toplevel_if_grabbed(struct g_cursor *cursor, uint32_t time) {
+    struct g_server *server = cursor->server;
+    struct g_toplevel_interaction *interaction = server->toplevel_interaction;
+
+    if (interaction->grabbed_toplevel) {
+        double border_x = server->cursor->wlr_cursor->x - interaction->grab_pos_x;
+	    double border_y = server->cursor->wlr_cursor->y - interaction->grab_pos_y;
+
+        int new_left = interaction->grabbed_client_box.x;
+	    int new_right = interaction->grabbed_client_box.x + interaction->grabbed_client_box.width;
+	    int new_top = interaction->grabbed_client_box.y;
+	    int new_bottom = interaction->grabbed_client_box.y + interaction->grabbed_client_box.height;
+
+        if (interaction->resize_edges & WLR_EDGE_TOP) {
+            new_top = border_y;
+            if (new_top >= new_bottom) {
+                new_top = new_bottom - 1;
+            }
+        } else if (interaction->resize_edges & WLR_EDGE_BOTTOM) {
+            new_bottom = border_y;
+            if (new_bottom <= new_top) {
+                new_bottom = new_top + 1;
+            }
+        }
+        if (interaction->resize_edges & WLR_EDGE_LEFT) {
+            new_left = border_x;
+            if (new_left >= new_right) {
+                new_left = new_right - 1;
+            }
+        } else if (interaction->resize_edges & WLR_EDGE_RIGHT) {
+            new_right = border_x;
+            if (new_right <= new_left) {
+                new_right = new_left + 1;
+            }
+        }
+
+        struct wlr_box *geo_box = &interaction->grabbed_toplevel->xdg_toplevel->base->geometry;
+
+        interaction->grabbed_toplevel->pos_x = new_left - geo_box->x;
+        interaction->grabbed_toplevel->pos_y = new_top - geo_box->y;
+
+        int new_width = new_right - new_left;
+        int new_height = new_bottom - new_top;
+
+        wlr_xdg_toplevel_set_size(
+            interaction->grabbed_toplevel->xdg_toplevel, 
+            new_width, 
+            new_height
+        );
+    }
+}
+
 static void g_cursor_find_and_enter_toplevel_if_focused(struct g_cursor *cursor, uint32_t time) {
     struct g_server *server = cursor->server;
 
@@ -125,24 +165,45 @@ static void g_cursor_find_and_enter_toplevel_if_focused(struct g_cursor *cursor,
     }
 }
 
+static void g_cursor_process_motion(struct g_cursor *cursor, uint32_t time) {
+    switch (cursor->cursor_mode) {
+        case CURSOR_RESIZE: 
+            g_cursor_find_and_resize_toplevel_if_grabbed(cursor, time);
+            break;
+        case CURSOR_MOVE:
+            g_cursor_find_and_move_toplevel_if_grabbed(cursor, time);
+            break;
+        default:
+            break;
+    }
+
+    g_cursor_find_and_enter_toplevel_if_focused(cursor, time);
+}
+
 void g_cursor_on_motion(struct wl_listener *listener, void *data) {
     struct g_cursor *cursor = wl_container_of(listener, cursor, cursor_motion_listener);
     struct wlr_pointer_motion_event *event = data;
 
-    wlr_cursor_move(cursor->wlr_cursor, &event->pointer->base, event->delta_x, event->delta_y);
+    wlr_cursor_move(
+        cursor->wlr_cursor, 
+        &event->pointer->base, 
+        event->delta_x, event->delta_y
+    );
 
-    g_cursor_find_and_move_toplevel_if_grabbed(cursor, event->time_msec);
-    g_cursor_find_and_enter_toplevel_if_focused(cursor, event->time_msec);
+    g_cursor_process_motion(cursor, event->time_msec);
 }
 
 void g_cursor_on_absolute_motion(struct wl_listener *listener, void *data) {
 	struct g_cursor *cursor = wl_container_of(listener, cursor, cursor_motion_absolute_listener);
 	struct wlr_pointer_motion_absolute_event *event = data;
     
-	wlr_cursor_warp_absolute(cursor->wlr_cursor, &event->pointer->base, event->x, event->y);
+	wlr_cursor_warp_absolute(
+        cursor->wlr_cursor, 
+        &event->pointer->base, 
+        event->x, event->y
+    );
 
-    g_cursor_find_and_move_toplevel_if_grabbed(cursor, event->time_msec);
-    g_cursor_find_and_enter_toplevel_if_focused(cursor, event->time_msec);
+    g_cursor_process_motion(cursor, event->time_msec);
 }
 
 void g_cursor_on_button(struct wl_listener *listener, void *data) {
@@ -182,7 +243,8 @@ void g_cursor_on_button(struct wl_listener *listener, void *data) {
 
     switch (event->state) {
         case WL_POINTER_BUTTON_STATE_RELEASED:
-            server->toplevel_interaction->grabbed_toplevel = NULL;
+            g_toplevel_interacton_reset(server->toplevel_interaction);
+            g_cursor_reset_mode(cursor);
             break;
         case WL_POINTER_BUTTON_STATE_PRESSED: 
             break;
@@ -197,6 +259,44 @@ void g_cursor_on_axis(struct wl_listener *listener, void *data) {
 
 void g_cursor_on_new_frame(struct wl_listener *listener, void *data) {
 
+}
+
+static void g_cursor_set_xcursor_image_by_name(struct g_cursor *cursor, const char* name) {
+    struct wlr_xcursor *xcursor = wlr_xcursor_manager_get_xcursor(cursor->cursor_mgr, name, 1);
+    struct wlr_xcursor_image *img = xcursor->images[0];
+
+    cursor->texture = wlr_texture_from_pixels(
+        cursor->server->renderer,
+        DRM_FORMAT_ARGB8888,
+        img->width * 4,
+        img->width,
+        img->height,
+        img->buffer
+    );
+
+    if (!cursor->texture) {
+        wlr_log(WLR_ERROR, "Failed to load xcursor texture");
+    }
+}
+
+void g_cursor_set_cursor_mode_resize_horizontal(struct g_cursor *cursor) {
+    cursor->cursor_mode = CURSOR_RESIZE;
+    g_cursor_set_xcursor_image_by_name(cursor, "left_side");
+}
+
+void g_cursor_set_cursor_mode_resize_vertical(struct g_cursor *cursor) {
+    cursor->cursor_mode = CURSOR_RESIZE;
+    g_cursor_set_xcursor_image_by_name(cursor, "top_side");
+}
+
+void g_cursor_set_cursor_mode_move(struct g_cursor *cursor) {
+    cursor->cursor_mode = CURSOR_MOVE;
+    g_cursor_set_xcursor_image_by_name(cursor, "left_ptr");
+}
+
+void g_cursor_reset_mode(struct g_cursor *cursor) {
+    cursor->cursor_mode = CURSOR_PASSTHROUGH;
+    g_cursor_set_xcursor_image_by_name(cursor, "left_ptr");
 }
 
 // Render contract

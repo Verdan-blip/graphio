@@ -1,3 +1,4 @@
+#include <stdint.h>
 #include <stdlib.h>
 #include <wayland-server-core.h>
 #include <wayland-util.h>
@@ -6,6 +7,7 @@
 #include <wlr/types/wlr_compositor.h>
 #include <wlr/util/log.h>
 #include "../include/g-toplevel-interaction.h"
+#include "include/g-cursor.h"
 #include "include/g-server.h"
 #include "../include/g-toplevel.h"
 
@@ -107,18 +109,42 @@ void g_toplevel_on_request_move(struct wl_listener *listener, void *data) {
     struct g_toplevel *toplevel = wl_container_of(listener, toplevel, request_move_listener);
     struct g_server *server = toplevel->server;
 
-    server->toplevel_interaction->grabbed_toplevel = toplevel;
+    struct g_toplevel_interaction *interaction = server->toplevel_interaction;
 
-    server->toplevel_interaction->grab_pos_x = server->cursor->wlr_cursor->x - toplevel->pos_x;
-    server->toplevel_interaction->grab_pos_y = server->cursor->wlr_cursor->y - toplevel->pos_y;
+    interaction->grabbed_toplevel = toplevel;
+
+    interaction->grab_pos_x = server->cursor->wlr_cursor->x - toplevel->pos_x;
+    interaction->grab_pos_y = server->cursor->wlr_cursor->y - toplevel->pos_y;
+
+    g_cursor_set_cursor_mode_move(server->cursor);
 }
 
 void g_toplevel_on_request_resize(struct wl_listener *listener, void *data) {
-    struct g_toplevel *toplevel = wl_container_of(listener, toplevel, request_maximize_listener);
+    struct g_toplevel *toplevel = wl_container_of(listener, toplevel, request_resize_listener);
+    struct g_server *server = toplevel->server;
 
-    if (toplevel->xdg_toplevel->base->initialized) {
-        wlr_xdg_surface_schedule_configure(toplevel->xdg_toplevel->base);
-    }
+    struct wlr_xdg_toplevel_resize_event *event = data;
+
+    struct g_toplevel_interaction *interaction = server->toplevel_interaction;
+
+    interaction->grabbed_toplevel = toplevel;
+
+    struct wlr_box *client_box = &toplevel->xdg_toplevel->base->geometry;
+    uint32_t edges = event->edges;
+
+	double border_x = (toplevel->pos_x + client_box->x) + ((edges & WLR_EDGE_RIGHT) ? client_box->width : 0);
+	double border_y = (toplevel->pos_y + client_box->y) + ((edges & WLR_EDGE_BOTTOM) ? client_box->height : 0);
+
+	server->toplevel_interaction->grab_pos_x = server->cursor->wlr_cursor->x - border_x;
+	server->toplevel_interaction->grab_pos_y = server->cursor->wlr_cursor->y - border_y;
+
+	interaction->grabbed_client_box = *client_box;
+	interaction->grabbed_client_box.x += toplevel->pos_x;
+	interaction->grabbed_client_box.y += toplevel->pos_y;
+
+	interaction->resize_edges = edges;
+
+    g_cursor_set_cursor_mode_resize_horizontal(server->cursor);
 }
 
 void g_toplevel_on_request_maximize(struct wl_listener *listener, void *data) {
