@@ -1,5 +1,6 @@
 #include <stdint.h>
 #include <stdlib.h>
+#include <time.h>
 #include <wayland-server-core.h>
 #include <wayland-util.h>
 #include <wlr/types/wlr_input_device.h>
@@ -169,7 +170,7 @@ struct g_toplevel_render_data {
     struct wlr_render_pass *pass;
 };
 
-static void g_toplevel_on_each_xdg_surface(
+static void g_toplevel_on_each_xdg_surface_render_pass(
     struct wlr_surface *s, 
     int sx, int sy, 
     void *data
@@ -189,8 +190,8 @@ static void g_toplevel_on_each_xdg_surface(
         .alpha = &alpha,
         .src_box = { 0, 0, s->current.width, s->current.height },
         .dst_box = { 
-            render_data->toplevel->pos_x, 
-            render_data->toplevel->pos_y, 
+            render_data->toplevel->pos_x + sx, 
+            render_data->toplevel->pos_y + sy, 
             s->current.width, 
             s->current.height 
         }
@@ -199,13 +200,32 @@ static void g_toplevel_on_each_xdg_surface(
 
 // Contract
 void g_toplevel_on_render_pass(struct g_toplevel *toplevel, struct wlr_render_pass *pass) {
+    if (!toplevel->mapped) return;
+
     wlr_xdg_surface_for_each_surface(
         toplevel->xdg_toplevel->base, 
-        g_toplevel_on_each_xdg_surface, 
+        g_toplevel_on_each_xdg_surface_render_pass, 
         &(struct g_toplevel_render_data) {
             .toplevel = toplevel,
             .pass = pass
         }
+    );
+}
+
+static void g_toplevel_on_each_xdg_surface_send_frame_done(
+    struct wlr_surface *s, 
+    int sx, int sy, 
+    void *data
+) {
+    struct timespec *now = data;
+    wlr_surface_send_frame_done(s, now);
+}
+
+void g_toplevel_send_frame_done(struct g_toplevel *toplevel, struct timespec *now) {
+    wlr_xdg_surface_for_each_surface(
+        toplevel->xdg_toplevel->base, 
+        g_toplevel_on_each_xdg_surface_send_frame_done, 
+        now
     );
 }
 

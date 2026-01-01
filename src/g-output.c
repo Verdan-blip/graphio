@@ -75,16 +75,10 @@ void g_output_on_new_frame(struct wl_listener *listener, void *data) {
         .box = { 0, 0, output->wlr_output->width, output->wlr_output->height }
     });
 
-    // Toplevels
+    // Toplevels and it's popups
     struct g_toplevel *toplevel;
     wl_list_for_each_reverse(toplevel, &server->toplevels, link) {
         g_toplevel_on_render_pass(toplevel, pass);
-    }
-
-    // Popups
-    struct g_popup *popup;
-    wl_list_for_each(popup, &server->popups, link) {
-        g_popup_on_render_pass(popup, pass);
     }
 
     // Dock panel
@@ -95,12 +89,15 @@ void g_output_on_new_frame(struct wl_listener *listener, void *data) {
 
     wlr_render_pass_submit(pass);
 
-    pixman_region32_t damage;
-    pixman_region32_init_rect(&damage, 0, 0, output->wlr_output->width, output->wlr_output->height);
-    wlr_output_state_set_damage(&state, &damage);
-    pixman_region32_fini(&damage);
+    //pixman_region32_t damage;
+    //pixman_region32_init_rect(&damage, 0, 0, output->wlr_output->width, output->wlr_output->height);
+    //wlr_output_state_set_damage(&state, &damage);
+    //pixman_region32_fini(&damage);
 
-    wlr_output_commit_state(output->wlr_output, &state);
+    if (!wlr_output_commit_state(output->wlr_output, &state)) {
+        wlr_log(WLR_ERROR, "commit failed");
+    }
+
     wlr_output_state_finish(&state);
 
     struct timespec now;
@@ -108,12 +105,13 @@ void g_output_on_new_frame(struct wl_listener *listener, void *data) {
 
     // Toplevels send frame done
     wl_list_for_each(toplevel, &server->toplevels, link) {
-        wlr_surface_send_frame_done(toplevel->xdg_toplevel->base->surface, &now);
+        g_toplevel_send_frame_done(toplevel, &now);
     }
 
     // Popups send frame done
+    struct g_popup *popup;
     wl_list_for_each(popup, &server->popups, link) {
-        wlr_surface_send_frame_done(popup->surface, &now);
+        g_popup_send_frame_done(popup, &now);
     }
 }
 

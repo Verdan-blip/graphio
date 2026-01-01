@@ -46,6 +46,8 @@ void g_toplevel_on_request_fullscreen(struct wl_listener *listener, void *data);
 // Contract
 void g_toplevel_on_render_pass(struct g_toplevel *toplevel, struct wlr_render_pass *pass);
 
+void g_toplevel_send_frame_done(struct g_toplevel *toplevel, struct timespec *now);
+
 bool g_toplevel_consume_cursor_button_event(
     struct g_toplevel *toplevel, 
     double x, 

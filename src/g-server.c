@@ -1,4 +1,5 @@
 #define _POSIX_C_SOURCE 200112L
+
 #include <wayland-util.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -17,6 +18,7 @@
 #include <wlr/types/wlr_xdg_decoration_v1.h>
 #include <wlr/render/wlr_renderer.h>
 #include <wlr/render/allocator.h>
+#include <wlr/types/wlr_data_device.h>
 #include "../include/g-dock-app.h"
 #include "../include/g-dock-panel.h"
 #include "../include/g-toplevel-interaction.h"
@@ -76,8 +78,9 @@ struct g_server* g_server_create() {
 		return NULL;
     }
 
+    wlr_data_device_manager_create(server->display);
+
     server->output_layout = wlr_output_layout_create(server->display);
-    
     server->xdg_shell = wlr_xdg_shell_create(server->display, 3);
 
     // Prepare lists
@@ -90,13 +93,13 @@ struct g_server* g_server_create() {
     struct g_seat *seat = g_seat_create(server);
     server->seat = seat;
 
-    // Toplevel interaction
-    struct g_toplevel_interaction *interaction = g_toplevel_interaction_create();
-    server->toplevel_interaction = interaction;
-
     // Graphio cursor
     struct g_cursor *cursor = g_cursor_create(server);
     server->cursor = cursor;
+
+    // Toplevel interaction
+    struct g_toplevel_interaction *interaction = g_toplevel_interaction_create();
+    server->toplevel_interaction = interaction;
 
     // Listeners
     server->new_input_listener.notify = g_server_on_new_input;

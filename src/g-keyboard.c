@@ -64,6 +64,7 @@ void g_keyboard_on_key(struct wl_listener *listener, void *data) {
 
 void g_keyboard_on_destroy(struct wl_listener *listener, void *data) {
     struct g_keyboard *keyboard = wl_container_of(listener, keyboard, destroy_listener);
+    wlr_seat_set_keyboard(keyboard->server->seat->wlr_seat, NULL);
 
     wl_list_remove(&keyboard->modifier_listener.link);
 	wl_list_remove(&keyboard->key_listener.link);

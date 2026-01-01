@@ -33,21 +33,11 @@ struct g_popup* g_popup_create(struct g_server *server, struct wlr_xdg_popup *xd
 
 void g_popup_on_map(struct wl_listener *listener, void *data) {
     struct g_popup *popup = wl_container_of(listener, popup, map_listener);
-
-	if (popup->xdg_popup->base->initial_commit) {
-		wlr_xdg_surface_schedule_configure(popup->xdg_popup->base);
-	}
-    
     popup->mapped = true;
 }
 
 void g_popup_on_unmap(struct wl_listener *listener, void *data) {
     struct g_popup *popup = wl_container_of(listener, popup, unmap_listener);
-
-	if (popup->xdg_popup->base->initial_commit) {
-		wlr_xdg_surface_schedule_configure(popup->xdg_popup->base);
-	}
-
     popup->mapped = false;
 }
 
@@ -58,11 +48,8 @@ void g_popup_on_commit(struct wl_listener *listener, void *data) {
 		wlr_xdg_surface_schedule_configure(popup->xdg_popup->base);
 	}
 
-    struct wlr_fbox window_geo_box;
-    wlr_surface_get_buffer_source_box(popup->surface, &window_geo_box);
-
-    popup->width = window_geo_box.width;
-    popup->height = window_geo_box.height;
+    popup->width = popup->xdg_popup->base->geometry.width;
+    popup->height = popup->xdg_popup->base->geometry.height;
 }
 
 void g_popup_on_destroy(struct wl_listener *listener, void *data) {
@@ -83,43 +70,8 @@ struct g_popup_render_data {
     struct wlr_render_pass *pass;
 };
 
-static void g_popup_on_each_xdg_surface(
-    struct wlr_surface *s, 
-    int sx, int sy, 
-    void *data
-) {
-    struct g_popup_render_data *render_data = data;
-    struct wlr_texture *texture = wlr_surface_get_texture(s);
-
-    if (!texture) {
-        wlr_log(WLR_ERROR, "No texture found for popup surface, skipping render");
-        return;
-    }
-
-    const float alpha = 1.0f;
-
-    wlr_render_pass_add_texture(render_data->pass, &(struct wlr_render_texture_options) {
-        .texture = texture,
-        .alpha = &alpha,
-        .src_box = { 0, 0, s->current.width, s->current.height },
-        .dst_box = { 
-            render_data->popup->pos_x, 
-            render_data->popup->pos_y, 
-            s->current.width, 
-            s->current.height 
-        }
-    });
-}
-
-void g_popup_on_render_pass(struct g_popup *popup, struct wlr_render_pass *pass) {
-    wlr_xdg_surface_for_each_surface(
-        popup->xdg_popup->base, 
-        g_popup_on_each_xdg_surface, 
-        &(struct g_popup_render_data) {
-            .popup = popup,
-            .pass = pass
-        }
-    );
+void g_popup_send_frame_done(struct g_popup *popup, struct timespec *now) {
+    wlr_surface_send_frame_done(popup->surface, now);
 }
 
 // Utils

@@ -254,11 +254,22 @@ void g_cursor_on_button(struct wl_listener *listener, void *data) {
 }
 
 void g_cursor_on_axis(struct wl_listener *listener, void *data) {
+    struct g_cursor *cursor = wl_container_of(listener, cursor, cursor_axis_listener);
+    struct g_server *server = cursor->server;
 
+	struct wlr_pointer_axis_event *event = data;
+
+	wlr_seat_pointer_notify_axis(server->seat->wlr_seat,
+			event->time_msec, event->orientation, event->delta,
+			event->delta_discrete, event->source, event->relative_direction
+    );
 }
 
 void g_cursor_on_new_frame(struct wl_listener *listener, void *data) {
+    struct g_cursor *cursor = wl_container_of(listener, cursor, cursor_frame_listener);
+    struct g_server *server = cursor->server;
 
+    wlr_seat_pointer_notify_frame(server->seat->wlr_seat);
 }
 
 static void g_cursor_set_xcursor_image_by_name(struct g_cursor *cursor, const char* name) {

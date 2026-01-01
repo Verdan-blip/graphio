@@ -2,6 +2,7 @@
 #define G_POPUP_H
 
 #include <stdbool.h>
+#include <time.h>
 #include <wayland-server-core.h>
 #include <wlr/render/wlr_renderer.h>
 
@@ -35,6 +36,8 @@ void g_popup_on_destroy(struct wl_listener *listener, void *data);
 
 // Contract
 void g_popup_on_render_pass(struct g_popup *popup, struct wlr_render_pass *pass);
+
+void g_popup_send_frame_done(struct g_popup *popup, struct timespec *now);
 
 //Utils
 struct g_popup* g_popup_at(
