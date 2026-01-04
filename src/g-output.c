@@ -1,5 +1,6 @@
 #define _POSIX_C_SOURCE 200112L
 
+#include <stdio.h>
 #include <wayland-util.h>
 #include "include/g-server.h"
 #include <stdlib.h>
@@ -104,15 +105,11 @@ void g_output_on_new_frame(struct wl_listener *listener, void *data) {
     clock_gettime(CLOCK_MONOTONIC, &now);
 
     // Toplevels send frame done
-    wl_list_for_each(toplevel, &server->toplevels, link) {
+    wl_list_for_each_reverse(toplevel, &server->toplevels, link) {
         g_toplevel_send_frame_done(toplevel, &now);
     }
 
-    // Popups send frame done
-    struct g_popup *popup;
-    wl_list_for_each(popup, &server->popups, link) {
-        g_popup_send_frame_done(popup, &now);
-    }
+    printf("%f, %f\n", server->cursor->wlr_cursor->x, server->cursor->wlr_cursor->y);
 }
 
 void g_output_on_request_state(struct wl_listener *listener, void *data) {

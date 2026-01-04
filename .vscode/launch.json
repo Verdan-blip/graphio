@@ -5,7 +5,7 @@
             "name": "Debug Meson Project",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/graphio",  // Имя вашего таргета из meson.build
+            "program": "${workspaceFolder}/build/graphio",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
@@ -16,11 +16,11 @@
                 },
                 {
                     "name": "XDG_RUNTIME_DIR",
-                    "value": "/run/user/1000"  // Убедитесь что путь правильный
+                    "value": "/run/user/1000"
                 },
                 {
                     "name": "WLR_DRM_DEVICES",
-                    "value": "/dev/dri/card0"  // Опционально, для DRM
+                    "value": "/dev/dri/card0"
                 }
             ],
             "externalConsole": false,

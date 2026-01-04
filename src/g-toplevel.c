@@ -11,6 +11,7 @@
 #include "include/g-cursor.h"
 #include "include/g-server.h"
 #include "../include/g-toplevel.h"
+#include "../include/g-popup.h"
 
 struct g_toplevel* g_toplevel_create(struct g_server *server, struct wlr_xdg_toplevel *xdg_toplevel) {
     struct g_toplevel *toplevel = calloc(1, sizeof(struct g_toplevel));
@@ -21,6 +22,10 @@ struct g_toplevel* g_toplevel_create(struct g_server *server, struct wlr_xdg_top
     toplevel->focused = false;
 
     toplevel->surface = xdg_toplevel->base->surface;
+    toplevel->xdg_toplevel->base->data = toplevel;
+
+    // List
+    wl_list_init(&toplevel->popups);
 
     // Surface
     toplevel->map_listener.notify = g_toplevel_on_map;
@@ -52,11 +57,17 @@ struct g_toplevel* g_toplevel_create(struct g_server *server, struct wlr_xdg_top
 }
 
 void g_toplevel_destroy(struct g_toplevel *toplevel) {
+    struct g_popup *popup;
+    wl_list_for_each(popup, &toplevel->popups, link) {
+        wl_list_remove(&popup->link);
+    }
+
     wl_list_remove(&toplevel->map_listener.link);
     wl_list_remove(&toplevel->unmap_listener.link);
     wl_list_remove(&toplevel->commit_listener.link);
     wl_list_remove(&toplevel->destroy_listener.link);
     wl_list_remove(&toplevel->link);
+
     free(toplevel);
 }
 
@@ -222,6 +233,11 @@ static void g_toplevel_on_each_xdg_surface_send_frame_done(
 }
 
 void g_toplevel_send_frame_done(struct g_toplevel *toplevel, struct timespec *now) {
+    struct g_popup *popup;
+    wl_list_for_each_reverse(popup, &toplevel->popups, link) {
+        g_popup_send_frame_done(popup, now);
+    }
+
     wlr_xdg_surface_for_each_surface(
         toplevel->xdg_toplevel->base, 
         g_toplevel_on_each_xdg_surface_send_frame_done, 
@@ -250,26 +266,43 @@ bool g_toplevel_consume_cursor_button_event(
 }
 
 // Utils
-struct g_toplevel* g_toplevel_at(
+struct g_toplevel* g_toplevel_surface_at(
     struct wl_list *toplevels, 
     double x, double y,
+    struct wlr_surface **surface,
     double *surface_x, double *surface_y
 ) {
     struct g_toplevel *toplevel;
     wl_list_for_each_reverse(toplevel, toplevels, link) {
-
         if (!toplevel->mapped) continue;
 
+        struct g_popup *popup;
+        wl_list_for_each_reverse(popup, &toplevel->popups, link) {
+
+            // To popup surface coords
+            double local_x = x - popup->pos_x;
+            double local_y = y - popup->pos_y;
+
+            (*surface) = wlr_surface_surface_at(
+                popup->surface, 
+                local_x, local_y,
+                surface_x, surface_y
+            );
+
+            if ((*surface)) return toplevel;
+        }
+
+        // To toplevel surface coords
         double local_x = x - toplevel->pos_x;
         double local_y = y - toplevel->pos_y;
 
-        struct wlr_surface *surface = wlr_surface_surface_at(
+        (*surface) = wlr_surface_surface_at(
             toplevel->surface, 
             local_x, local_y,
             surface_x, surface_y
         );
 
-        if (surface) {
+        if ((*surface)) {
             return toplevel;
         }
     }

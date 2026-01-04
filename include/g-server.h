@@ -33,7 +33,6 @@ struct g_server {
     struct wl_list keyboards;
     struct wl_list outputs;
     struct wl_list toplevels;
-    struct wl_list popups;
     struct g_toplevel_interaction *toplevel_interaction;
 
     struct g_seat *seat;

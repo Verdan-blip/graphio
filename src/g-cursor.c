@@ -17,7 +17,8 @@
 #include "../include/g-cursor.h"
 #include "../include/g-toplevel.h"
 #include "../include/g-toplevel-interaction.h"
-#include "include/g-popup.h"
+#include "../include/utils/g-toplevel-intersection.h"
+#include "../include/g-popup.h"
 
 struct g_cursor* g_cursor_create(struct g_server *server) {
     struct g_cursor *cursor = calloc(1, sizeof(struct g_cursor));
@@ -25,7 +26,7 @@ struct g_cursor* g_cursor_create(struct g_server *server) {
 
     cursor->wlr_cursor = wlr_cursor_create();
     if (!cursor->wlr_cursor) {
-        wlr_log(WLR_ERROR, "Failed to create wlr_cursor");
+        wlr_log(WLR_ERROR, "g_cursor: failed to create wlr_cursor");
     }
 
     wlr_cursor_attach_output_layout(cursor->wlr_cursor, server->output_layout);
@@ -135,32 +136,29 @@ static void g_cursor_find_and_resize_toplevel_if_grabbed(struct g_cursor *cursor
 static void g_cursor_find_and_enter_toplevel_if_focused(struct g_cursor *cursor, uint32_t time) {
     struct g_server *server = cursor->server;
 
-    if (!wl_list_empty(&server->toplevels)) {
-        double surface_x, surface_y;
-        
-        struct g_toplevel *toplevel = g_toplevel_at(
-            &server->toplevels,
-            cursor->wlr_cursor->x,
-            cursor->wlr_cursor->y,
-            &surface_x, &surface_y
-        );
+    struct wl_list toplevels = server->toplevels;
 
-        if (toplevel) {
-            if (toplevel->focused && toplevel->surface) {
-                wlr_seat_pointer_notify_enter(
-                    server->seat->wlr_seat, 
-                    toplevel->surface, 
-                    cursor->wlr_cursor->x, 
-                    cursor->wlr_cursor->y
-                );
-                wlr_seat_pointer_notify_motion(
-                    server->seat->wlr_seat,
-                    time,
-                    surface_x, surface_y
-                );
-            } else {
-                wlr_seat_pointer_clear_focus(server->seat->wlr_seat);
-            }
+    struct g_toplevel_intersection_info info = g_toplevel_at(
+        &server->toplevels, 
+        cursor->wlr_cursor->x,
+        cursor->wlr_cursor->y
+    );
+
+    if (info.status) {
+        if (info.toplevel->focused && info.nearest_surface) {
+            wlr_seat_pointer_notify_enter(
+                server->seat->wlr_seat, 
+                info.nearest_surface, 
+                cursor->wlr_cursor->x, 
+                cursor->wlr_cursor->y
+            );
+            wlr_seat_pointer_notify_motion(
+                server->seat->wlr_seat,
+                time,
+                info.surface_pos_x, info.surface_pos_y
+            );
+        } else {
+            wlr_seat_pointer_clear_focus(server->seat->wlr_seat);
         }
     }
 }
@@ -286,7 +284,7 @@ static void g_cursor_set_xcursor_image_by_name(struct g_cursor *cursor, const ch
     );
 
     if (!cursor->texture) {
-        wlr_log(WLR_ERROR, "Failed to load xcursor texture");
+        wlr_log(WLR_ERROR, "g_cursor: failed to load xcursor texture");
     }
 }
 
@@ -313,7 +311,7 @@ void g_cursor_reset_mode(struct g_cursor *cursor) {
 // Render contract
 void g_cursor_on_render_pass(struct g_cursor *cursor, struct wlr_render_pass *pass) {
     if (!cursor) {
-        wlr_log(WLR_INFO, "Graphio cursor has not been attached yet, skipping");
+        wlr_log(WLR_INFO, "g_cursor: graphio cursor has not been attached yet, skipping");
     }
 
     const float cursor_alpha = 1.0f;

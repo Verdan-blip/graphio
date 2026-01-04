@@ -58,6 +58,7 @@ sources = [
   'src/g-toplevel.c',
   'src/g-popup.c',
   'src/g-toplevel-interaction.c',
+  'src/utils/g-toplevel-intersection.c',
   'src/g-seat.c',
   'src/g-icon.c',
   'src/g-dock-app.c',

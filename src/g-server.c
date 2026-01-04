@@ -31,30 +31,32 @@
 #include "../include/g-seat.h"
 #include <wlr/render/gles2.h>
 
+#define ENV_WAYLAND_DISPLAY "WAYLAND_DISPLAY"
+
 struct g_server* g_server_create() {
     struct g_server *server = calloc(1, sizeof(struct g_server));
 
     server->display = wl_display_create();
     if (!server->display) {
-        wlr_log(WLR_ERROR, "Failed to create wlr_display");
+        wlr_log(WLR_ERROR, "g_server: failed to create wlr_display");
         return NULL;
     }
 
     struct wl_event_loop *loop = wl_display_get_event_loop(server->display);
     if (!loop) {
-        wlr_log(WLR_ERROR, "Failed to get event loop from wlr_display");
+        wlr_log(WLR_ERROR, "g_server: failed to get event loop from wlr_display");
         return NULL;
     }
 
     server->backend = wlr_backend_autocreate(loop, NULL);
     if (!server->backend) {
-        wlr_log(WLR_ERROR, "Failed to create wlr_backend");
+        wlr_log(WLR_ERROR, "g_server: failed to create wlr_backend");
         return NULL;
     }
 
     server->renderer = wlr_renderer_autocreate(server->backend);
     if (!server->renderer) {
-        wlr_log(WLR_ERROR, "Failed to create wlr_renderer");
+        wlr_log(WLR_ERROR, "g_server: failed to create wlr_renderer");
         return NULL;
     }
 
@@ -62,19 +64,19 @@ struct g_server* g_server_create() {
 
     server->allocator = wlr_allocator_autocreate(server->backend, server->renderer);
 	if (!server->allocator) {
-		wlr_log(WLR_ERROR, "Failed to create wlr_allocator");
+		wlr_log(WLR_ERROR, "g_server: failed to create wlr_allocator");
 		return NULL;
 	}
 
     struct wlr_compositor *compositor = wlr_compositor_create(server->display, 5, server->renderer);
     if (!compositor) {
-        wlr_log(WLR_ERROR, "Failed to create wlr_compositor");
+        wlr_log(WLR_ERROR, "g_server: failed to create wlr_compositor");
 		return NULL;
     }
 
     struct wlr_subcompositor *subcompositor = wlr_subcompositor_create(server->display);
     if (!subcompositor) {
-        wlr_log(WLR_ERROR, "Failed to create wlr_subcompositor");
+        wlr_log(WLR_ERROR, "g_server: failed to create wlr_subcompositor");
 		return NULL;
     }
 
@@ -86,7 +88,6 @@ struct g_server* g_server_create() {
     // Prepare lists
     wl_list_init(&server->outputs);
     wl_list_init(&server->toplevels);
-    wl_list_init(&server->popups);
     wl_list_init(&server->keyboards);
 
     // Seat
@@ -121,21 +122,21 @@ struct g_server* g_server_create() {
 void g_server_run(struct g_server *server) {
     const char *socket = wl_display_add_socket_auto(server->display);
 	if (!socket) {
-        wlr_log(WLR_ERROR, "Failed to open socket");
+        wlr_log(WLR_ERROR, "g_server: failed to open socket");
 		wlr_backend_destroy(server->backend);
 		return;
 	}
 
 	if (!wlr_backend_start(server->backend)) {
-        wlr_log(WLR_ERROR, "Failed to start backend");
+        wlr_log(WLR_ERROR, "g_server: failed to start backend");
 		wlr_backend_destroy(server->backend);
 		wl_display_destroy(server->display);
 		return;
 	}
 
-	setenv("WAYLAND_DISPLAY", socket, true);
+	setenv(ENV_WAYLAND_DISPLAY, socket, true);
 
-	wlr_log(WLR_INFO, "Running Wayland compositor on WAYLAND_DISPLAY=%s", socket);
+	wlr_log(WLR_INFO, "g_server: running wayland compositor on WAYLAND_DISPLAY=%s", socket);
     
 	wl_display_run(server->display);
 }
@@ -189,11 +190,13 @@ void g_server_on_new_input(struct wl_listener *listener, void *data) {
             wlr_cursor_attach_input_device(server->cursor->wlr_cursor, device);
             break;
         }
+
         case WLR_INPUT_DEVICE_KEYBOARD: {
             struct g_keyboard *keyboard = g_keyboard_create(server, device);
             wl_list_insert(&server->keyboards, &keyboard->link);
             break;
         }
+
         default:
             break;
     }
@@ -210,6 +213,7 @@ void g_server_on_new_toplevel(struct wl_listener *listener, void *data) {
     struct wlr_xdg_toplevel *xdg_toplevel = data;
 
     struct g_toplevel *toplevel = g_toplevel_create(server, xdg_toplevel);
+
     wl_list_insert(&server->toplevels, &toplevel->link);
 }
 
@@ -218,5 +222,6 @@ void g_server_on_new_popup(struct wl_listener *listener, void *data) {
     struct wlr_xdg_popup *xdg_popup = data;
 
     struct g_popup *popup = g_popup_create(server, xdg_popup);
-    wl_list_insert(&server->popups, &popup->link);
+
+    wl_list_insert(&popup->toplevel->popups, &popup->link);
 }

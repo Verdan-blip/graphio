@@ -8,9 +8,10 @@
             "args": [
                 "setup",
                 "build",
-                "--buildtype=debug",        // Важно для дебага!
-                "--werror",                 // Предупреждения как ошибки
-                "-Ddefault_library=static"  // Опционально
+                "--buildtype=debug",
+                "--werror",
+                "-Ddefault_library=static",
+                "-Db_sanitize=address,undefined"
             ],
             "group": "build",
             "presentation": {

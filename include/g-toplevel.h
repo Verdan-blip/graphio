@@ -21,6 +21,8 @@ struct g_toplevel {
     bool mapped;
     bool focused;
 
+    struct wl_list popups;
+
     struct wl_listener destroy_listener;
     struct wl_listener map_listener;
     struct wl_listener unmap_listener;
@@ -56,9 +58,10 @@ bool g_toplevel_consume_cursor_button_event(
 );
 
 // Utils
-struct g_toplevel* g_toplevel_at(
+struct g_toplevel* g_toplevel_surface_at(
     struct wl_list *toplevels, 
     double x, double y,
+    struct wlr_surface **surface,
     double *surface_x, double *surface_y
 );
 
