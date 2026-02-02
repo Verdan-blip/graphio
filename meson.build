@@ -51,9 +51,6 @@ xdg_shell_client_protocol_h = custom_target('xdg-shell-client-protocol.h',
 # Исходные файлы
 sources = [
   'src/main.c',
-  'src/components/paddings.c',
-  'src/g-dock.c',
-  'src/g-icon.c',
   xdg_shell_protocol_h,
   xdg_shell_client_protocol_h
 ]
