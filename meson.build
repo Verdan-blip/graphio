@@ -29,41 +29,30 @@ wayland_server = dependency('wayland-server')
 wayland_client = dependency('wayland-client')
 xkbcommon = dependency('xkbcommon')
 pixman = dependency('pixman-1')
+jansson = dependency('jansson')
 
-cairo = dependency('cairo')
-
-wl_protocol_dir = wayland_protos.get_variable(pkgconfig: 'pkgdatadir')
-
-xdg_shell_xml = join_paths(wl_protocol_dir, 'stable', 'xdg-shell', 'xdg-shell.xml')
-
-xdg_shell_protocol_h = custom_target('xdg-shell-protocol.h',
-  input: xdg_shell_xml,
-  output: 'xdg-shell-protocol.h',
-  command: [wayland_scanner, 'client-header', '@INPUT@', '@OUTPUT@']
-)
-
-xdg_shell_client_protocol_h = custom_target('xdg-shell-client-protocol.h',
-  input: xdg_shell_xml,
-  output: 'xdg-shell-client-protocol.h',
-  command: [wayland_scanner, 'client-header', '@INPUT@', '@OUTPUT@']
-)
-
-# Исходные файлы
 sources = [
   'src/main.c',
-  xdg_shell_protocol_h,
-  xdg_shell_client_protocol_h
+  'src/g_launcher.c',
+  'src/g_layer_surface.c',
+  'src/g_workspace.c',
+  'src/g_workspace_window.c',
+  'src/g_navgraph.c',
+  'src/g_navigator.c'
 ]
+
+protocols_inc = include_directories('protocols')
 
 executable(
   'graphio',
   sources,
+  include_directories: protocols_inc,
   dependencies: [
     wlroots,
     wayland_server,
     wayland_client,
     xkbcommon,
-    cairo,
-    pixman
+    pixman,
+    jansson
   ]
 )
