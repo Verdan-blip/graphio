@@ -1,8 +1,11 @@
 #ifndef G_SERVER_H
 #define G_SERVER_H
 
-#include "../include/g_layer_surface.h"
-#include "../include/g_navigator.h"
+#include <wlr/types/wlr_foreign_toplevel_management_v1.h>
+
+#include "include/g_layer_surface.h"
+#include "include/g_navigator.h"
+#include "include/ui/window_switcher/g_switcher.h"
 
 enum g_cursor_mode {
 	G_CURSOR_PASSTHROUGH,
@@ -52,6 +55,10 @@ struct g_server {
 	struct wl_listener new_output;
 
 	struct g_navigator *navigator;
+	
+	struct g_switcher *switcher;
+
+	struct wlr_foreign_toplevel_manager_v1 *toplevel_manager;
 };
 
 struct g_output {
@@ -85,6 +92,8 @@ struct g_toplevel {
 	struct wl_listener request_resize;
 	struct wl_listener request_maximize;
 	struct wl_listener request_fullscreen;
+
+	struct wlr_foreign_toplevel_handle_v1 *handle;
 };
 
 struct g_popup {

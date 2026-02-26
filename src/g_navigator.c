@@ -1,14 +1,14 @@
-#include "../include/g_navigator.h"
-#include "../include/g_workspace_window.h"
-#include "../include/g_server.h"
-#include "../include/g_navgraph.h"
-#include "../include/g_workspace.h"
-
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <time.h>
 #include <wayland-util.h>
+
+#include "../include/g_navigator.h"
+#include "../include/g_workspace_window.h"
+#include "../include/g_server.h"
+#include "../include/g_navgraph.h"
+#include "../include/g_workspace.h"
 
 struct g_navigator* g_navigator_create() {
     struct g_navigator *navigator = malloc(sizeof(struct g_navigator));

@@ -1,6 +1,6 @@
-#define _POSIX_C_SOURCE 200112L
+#define _POSIX_C_SOURCE 200809L
 
-#include <stdio.h>
+#include <string.h>
 #include <assert.h>
 #include <getopt.h>
 #include <stdbool.h>
@@ -30,13 +30,15 @@
 #include <wlr/util/log.h>
 #include <xkbcommon/xkbcommon.h>
 #include <xkbcommon/xkbcommon-keysyms.h>
+#include <wlr/types/wlr_foreign_toplevel_management_v1.h>
 
-#include "../include/g_launcher.h"
-#include "../include/g_layer_surface.h"
-#include "../include/g_server.h"
-#include "../include/g_navigator.h"
-#include "../include/g_navgraph.h"
-#include "../include/g_workspace_window.h"
+#include "include/g_launcher.h"
+#include "include/g_layer_surface.h"
+#include "include/g_server.h"
+#include "include/g_navigator.h"
+#include "include/g_navgraph.h"
+#include "include/ui/window_switcher/g_switcher.h"
+#include "include/utils/g_image_utils.h"
 
 static void focus_toplevel(struct g_toplevel *toplevel) {
 	if (toplevel == NULL) return;
@@ -55,6 +57,7 @@ static void focus_toplevel(struct g_toplevel *toplevel) {
 			struct g_toplevel *toplevel = scene_tree->node.data;
 
 			wlr_xdg_toplevel_set_activated(prev_toplevel, false);
+			wlr_foreign_toplevel_handle_v1_set_activated(toplevel->handle, false);
 			toplevel->focused = false;
 		}
 	}
@@ -66,6 +69,8 @@ static void focus_toplevel(struct g_toplevel *toplevel) {
 	wl_list_insert(&server->toplevels, &toplevel->link);
 
 	wlr_xdg_toplevel_set_activated(toplevel->xdg_toplevel, true);
+	wlr_foreign_toplevel_handle_v1_set_activated(toplevel->handle, true);
+
 	toplevel->focused = true;
 
 	if (keyboard != NULL) {
@@ -91,26 +96,30 @@ static bool handle_keybinding(struct g_server *server, xkb_keysym_t sym) {
 	}
 
 	case XKB_KEY_W: {
-		struct g_workspace_window *window = server->navigator->navgraph->tops[TOP];
-		if (window != NULL) focus_toplevel(window->toplevel);
+		//struct g_workspace_window *window = server->navigator->navgraph->tops[TOP];
+		//if (window != NULL) focus_toplevel(window->toplevel);
+		//g_switcher_show(server->switcher);
 		break;
 	}
 
 	case XKB_KEY_S: {
-		struct g_workspace_window *window = server->navigator->navgraph->tops[BOTTOM];
-		if (window != NULL) focus_toplevel(window->toplevel);
+		//struct g_workspace_window *window = server->navigator->navgraph->tops[BOTTOM];
+		//if (window != NULL) focus_toplevel(window->toplevel);
+		//g_switcher_show(server->switcher);
 		break;
 	}
 
 	case XKB_KEY_A: {
-		struct g_workspace_window *window = server->navigator->navgraph->tops[LEFT];
-		if (window != NULL) focus_toplevel(window->toplevel);
+		//struct g_workspace_window *window = server->navigator->navgraph->tops[LEFT];
+		//if (window != NULL) focus_toplevel(window->toplevel);
+		//g_switcher_show(server->switcher);
 		break;
 	}
 
 	case XKB_KEY_D: {
-		struct g_workspace_window *window = server->navigator->navgraph->tops[RIGHT];
-		if (window != NULL) focus_toplevel(window->toplevel);
+		//struct g_workspace_window *window = server->navigator->navgraph->tops[RIGHT];
+		//if (window != NULL) focus_toplevel(window->toplevel);
+		//g_switcher_show(server->switcher);
 		break;
 	}
 
@@ -186,20 +195,12 @@ static void server_new_keyboard(struct g_server *server, struct wlr_input_device
 	wl_list_insert(&server->keyboards, &keyboard->link);
 }
 
-static void server_new_pointer(struct g_server *server,
-		struct wlr_input_device *device) {
-	/* We don't do anything special with pointers. All of our pointer handling
-	 * is proxied through wlr_cursor. On another compositor, you might take this
-	 * opportunity to do libinput configuration on the device to set
-	 * acceleration, etc. */
+static void server_new_pointer(struct g_server *server, struct wlr_input_device *device) {
 	wlr_cursor_attach_input_device(server->cursor, device);
 }
 
 static void server_new_input(struct wl_listener *listener, void *data) {
-	/* This event is raised by the backend when a new input device becomes
-	 * available. */
-	struct g_server *server =
-		wl_container_of(listener, server, new_input);
+	struct g_server *server = wl_container_of(listener, server, new_input);
 	struct wlr_input_device *device = data;
 	switch (device->type) {
 	case WLR_INPUT_DEVICE_KEYBOARD:
@@ -211,9 +212,7 @@ static void server_new_input(struct wl_listener *listener, void *data) {
 	default:
 		break;
 	}
-	/* We need to let the wlr_seat know what our capabilities are, which is
-	 * communiciated to the client. In TinyWL we always have a cursor, even if
-	 * there are no pointer devices, so we always include that capability. */
+
 	uint32_t caps = WL_SEAT_CAPABILITY_POINTER;
 	if (!wl_list_empty(&server->keyboards)) {
 		caps |= WL_SEAT_CAPABILITY_KEYBOARD;
@@ -273,13 +272,11 @@ static struct g_toplevel *desktop_toplevel_at(
 }
 
 static void reset_cursor_mode(struct g_server *server) {
-	/* Reset the cursor mode to passthrough. */
 	server->cursor_mode = G_CURSOR_PASSTHROUGH;
 	server->grabbed_toplevel = NULL;
 }
 
 static void process_cursor_move(struct g_server *server) {
-	/* Move the grabbed toplevel to the new position. */
 	struct g_toplevel *toplevel = server->grabbed_toplevel;
 	wlr_scene_node_set_position(&toplevel->scene_tree->node,
 		server->cursor->x - server->grab_x,
@@ -402,8 +399,7 @@ static void output_frame(struct wl_listener *listener, void *data) {
 	struct g_output *output = wl_container_of(listener, output, frame);
 	struct wlr_scene *scene = output->server->scene;
 
-	struct wlr_scene_output *scene_output = wlr_scene_get_scene_output(
-		scene, output->wlr_output);
+	struct wlr_scene_output *scene_output = wlr_scene_get_scene_output(scene, output->wlr_output);
 
 	wlr_scene_output_commit(scene_output, NULL);
 
@@ -496,6 +492,8 @@ static void xdg_toplevel_commit(struct wl_listener *listener, void *data) {
 static void xdg_toplevel_on_destroy(struct wl_listener *listener, void *data) {
 	struct g_toplevel *toplevel = wl_container_of(listener, toplevel, destroy);
 	struct g_server *server = toplevel->server;
+
+	wlr_foreign_toplevel_handle_v1_destroy(toplevel->handle);
 
 	g_navigator_on_destroy_toplevel(server->navigator->navgraph, toplevel);
 
@@ -624,7 +622,18 @@ static void server_new_xdg_toplevel(struct wl_listener *listener, void *data) {
 	toplevel->request_fullscreen.notify = xdg_toplevel_request_fullscreen;
 	wl_signal_add(&xdg_toplevel->events.request_fullscreen, &toplevel->request_fullscreen);
 
+
+	struct wlr_foreign_toplevel_handle_v1 *handle = wlr_foreign_toplevel_handle_v1_create(server->toplevel_manager);
+	toplevel->handle = handle;
+
+	const char* title = xdg_toplevel->title == NULL ? "" : strdup(xdg_toplevel->title);
+	const char* app_id = xdg_toplevel->title == NULL ? "" : strdup(xdg_toplevel->app_id);
+
+	wlr_foreign_toplevel_handle_v1_set_title(handle, title);
+	wlr_foreign_toplevel_handle_v1_set_app_id(handle, app_id);
+
 	g_navigator_on_create_toplevel(server->navigator->navgraph, toplevel);
+	g_switcher_add_toplevel(server->switcher, toplevel);
 }
 
 static void xdg_popup_commit(struct wl_listener *listener, void *data) {
@@ -751,6 +760,9 @@ int main(int argc, char *argv[]) {
 			&server.request_set_selection);
 
 	server.navigator = g_navigator_create();
+	server.switcher = g_switcher_create(&server);
+
+	server.toplevel_manager = wlr_foreign_toplevel_manager_v1_create(server.wl_display);
 
 	/* Add a Unix socket to the Wayland display. */
 	const char *socket = wl_display_add_socket_auto(server.wl_display);
