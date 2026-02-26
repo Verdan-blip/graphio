@@ -54,10 +54,6 @@ struct g_server {
 	struct wl_list outputs;
 	struct wl_listener new_output;
 
-	struct g_navigator *navigator;
-	
-	struct g_switcher *switcher;
-
 	struct wlr_foreign_toplevel_manager_v1 *toplevel_manager;
 };
 
@@ -70,30 +66,6 @@ struct g_output {
 	struct wl_listener frame;
 	struct wl_listener request_state;
 	struct wl_listener destroy;
-};
-
-struct g_toplevel {
-	struct wl_list link;
-
-	bool maximized;
-	bool focused;
-
-	struct wlr_box restore_box;
-
-	struct g_server *server;
-	struct wlr_xdg_toplevel *xdg_toplevel;
-	struct wlr_scene_tree *scene_tree;
-
-	struct wl_listener map;
-	struct wl_listener unmap;
-	struct wl_listener commit;
-	struct wl_listener destroy;
-	struct wl_listener request_move;
-	struct wl_listener request_resize;
-	struct wl_listener request_maximize;
-	struct wl_listener request_fullscreen;
-
-	struct wlr_foreign_toplevel_handle_v1 *handle;
 };
 
 struct g_popup {
@@ -111,5 +83,7 @@ struct g_keyboard {
 	struct wl_listener key;
 	struct wl_listener destroy;
 };
+
+void reset_cursor_mode(struct g_server *server);
 
 #endif

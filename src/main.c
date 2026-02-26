@@ -1,6 +1,5 @@
 #define _POSIX_C_SOURCE 200809L
 
-#include <string.h>
 #include <assert.h>
 #include <getopt.h>
 #include <stdbool.h>
@@ -37,49 +36,9 @@
 #include "include/g_server.h"
 #include "include/g_navigator.h"
 #include "include/g_navgraph.h"
+#include "include/g_toplevel.h"
 #include "include/ui/window_switcher/g_switcher.h"
 #include "include/utils/g_image_utils.h"
-
-static void focus_toplevel(struct g_toplevel *toplevel) {
-	if (toplevel == NULL) return;
-
-	struct g_server *server = toplevel->server;
-	struct wlr_seat *seat = server->seat;
-	struct wlr_surface *prev_surface = seat->keyboard_state.focused_surface;
-	struct wlr_surface *surface = toplevel->xdg_toplevel->base->surface;
-
-	if (prev_surface == surface) return;
-
-	if (prev_surface) {
-		struct wlr_xdg_toplevel *prev_toplevel = wlr_xdg_toplevel_try_from_wlr_surface(prev_surface);
-		if (prev_toplevel != NULL) {
-			struct wlr_scene_tree *scene_tree = prev_toplevel->base->data;
-			struct g_toplevel *toplevel = scene_tree->node.data;
-
-			wlr_xdg_toplevel_set_activated(prev_toplevel, false);
-			wlr_foreign_toplevel_handle_v1_set_activated(toplevel->handle, false);
-			toplevel->focused = false;
-		}
-	}
-
-	struct wlr_keyboard *keyboard = wlr_seat_get_keyboard(seat);
-
-	wlr_scene_node_raise_to_top(&toplevel->scene_tree->node);
-	wl_list_remove(&toplevel->link);
-	wl_list_insert(&server->toplevels, &toplevel->link);
-
-	wlr_xdg_toplevel_set_activated(toplevel->xdg_toplevel, true);
-	wlr_foreign_toplevel_handle_v1_set_activated(toplevel->handle, true);
-
-	toplevel->focused = true;
-
-	if (keyboard != NULL) {
-		wlr_seat_keyboard_notify_enter(seat, surface,
-			keyboard->keycodes, keyboard->num_keycodes, &keyboard->modifiers);
-	}
-
-	g_navigator_on_focus_toplevel(server->navigator->navgraph, toplevel);
-}
 
 static void keyboard_handle_modifiers(struct wl_listener *listener, void *data) {
 	struct g_keyboard *keyboard = wl_container_of(listener, keyboard, modifiers);
@@ -246,32 +205,7 @@ static void seat_request_set_selection(struct wl_listener *listener, void *data)
 	wlr_seat_set_selection(server->seat, event->source, event->serial);
 }
 
-static struct g_toplevel *desktop_toplevel_at(
-		struct g_server *server, double lx, double ly,
-		struct wlr_surface **surface, double *sx, double *sy) {
-
-	struct wlr_scene_node *node = wlr_scene_node_at(
-		&server->scene->tree.node, lx, ly, sx, sy);
-	if (node == NULL || node->type != WLR_SCENE_NODE_BUFFER) {
-		return NULL;
-	}
-	struct wlr_scene_buffer *scene_buffer = wlr_scene_buffer_from_node(node);
-	struct wlr_scene_surface *scene_surface =
-		wlr_scene_surface_try_from_buffer(scene_buffer);
-	if (!scene_surface) {
-		return NULL;
-	}
-
-	*surface = scene_surface->surface;
-
-	struct wlr_scene_tree *tree = node->parent;
-	while (tree != NULL && tree->node.data == NULL) {
-		tree = tree->node.parent;
-	}
-	return tree->node.data;
-}
-
-static void reset_cursor_mode(struct g_server *server) {
+void reset_cursor_mode(struct g_server *server) {
 	server->cursor_mode = G_CURSOR_PASSTHROUGH;
 	server->grabbed_toplevel = NULL;
 }
@@ -336,7 +270,7 @@ static void process_cursor_motion(struct g_server *server, uint32_t time) {
 	double sx, sy;
 	struct wlr_seat *seat = server->seat;
 	struct wlr_surface *surface = NULL;
-	struct g_toplevel *toplevel = desktop_toplevel_at(server,
+	struct g_toplevel *toplevel = g_toplevel_at(server,
 			server->cursor->x, server->cursor->y, &surface, &sx, &sy);
 	if (!toplevel) {
 		wlr_cursor_set_xcursor(server->cursor, server->cursor_mgr, "default");
@@ -375,8 +309,8 @@ static void server_cursor_button(struct wl_listener *listener, void *data) {
 	} else {
 		double sx, sy;
 		struct wlr_surface *surface = NULL;
-		struct g_toplevel *toplevel = desktop_toplevel_at(server, server->cursor->x, server->cursor->y, &surface, &sx, &sy);
-		focus_toplevel(toplevel);
+		struct g_toplevel *toplevel = g_toplevel_at(server, server->cursor->x, server->cursor->y, &surface, &sx, &sy);
+		g_focus_toplevel(toplevel);
 	}
 }
 
@@ -463,179 +397,6 @@ static void server_new_output(struct wl_listener *listener, void *data) {
 	wlr_scene_output_layout_add_output(server->scene_layout, l_output, scene_output);
 }
 
-static void xdg_toplevel_map(struct wl_listener *listener, void *data) {
-	struct g_toplevel *toplevel = wl_container_of(listener, toplevel, map);
-
-	wl_list_insert(&toplevel->server->toplevels, &toplevel->link);
-
-	focus_toplevel(toplevel);
-}
-
-static void xdg_toplevel_unmap(struct wl_listener *listener, void *data) {
-	struct g_toplevel *toplevel = wl_container_of(listener, toplevel, unmap);
-
-	if (toplevel == toplevel->server->grabbed_toplevel) {
-		reset_cursor_mode(toplevel->server);
-	}
-
-	wl_list_remove(&toplevel->link);
-}
-
-static void xdg_toplevel_commit(struct wl_listener *listener, void *data) {
-	struct g_toplevel *toplevel = wl_container_of(listener, toplevel, commit);
-
-	if (toplevel->xdg_toplevel->base->initial_commit) {
-		wlr_xdg_toplevel_set_size(toplevel->xdg_toplevel, 0, 0);
-	}
-}
-
-static void xdg_toplevel_on_destroy(struct wl_listener *listener, void *data) {
-	struct g_toplevel *toplevel = wl_container_of(listener, toplevel, destroy);
-	struct g_server *server = toplevel->server;
-
-	wlr_foreign_toplevel_handle_v1_destroy(toplevel->handle);
-
-	g_navigator_on_destroy_toplevel(server->navigator->navgraph, toplevel);
-
-	wl_list_remove(&toplevel->map.link);
-	wl_list_remove(&toplevel->unmap.link);
-	wl_list_remove(&toplevel->commit.link);
-	wl_list_remove(&toplevel->destroy.link);
-	wl_list_remove(&toplevel->request_move.link);
-	wl_list_remove(&toplevel->request_resize.link);
-	wl_list_remove(&toplevel->request_maximize.link);
-	wl_list_remove(&toplevel->request_fullscreen.link);
-
-	free(toplevel);
-}
-
-static void begin_interactive(struct g_toplevel *toplevel, enum g_cursor_mode mode, uint32_t edges) {
-	struct g_server *server = toplevel->server;
-
-	server->grabbed_toplevel = toplevel;
-	server->cursor_mode = mode;
-
-	if (mode == G_CURSOR_MOVE) {
-		server->grab_x = server->cursor->x - toplevel->scene_tree->node.x;
-		server->grab_y = server->cursor->y - toplevel->scene_tree->node.y;
-	} else {
-		struct wlr_box *geo_box = &toplevel->xdg_toplevel->base->geometry;
-
-		double border_x = (toplevel->scene_tree->node.x + geo_box->x) +
-			((edges & WLR_EDGE_RIGHT) ? geo_box->width : 0);
-		double border_y = (toplevel->scene_tree->node.y + geo_box->y) +
-			((edges & WLR_EDGE_BOTTOM) ? geo_box->height : 0);
-		server->grab_x = server->cursor->x - border_x;
-		server->grab_y = server->cursor->y - border_y;
-
-		server->grab_geobox = *geo_box;
-		server->grab_geobox.x += toplevel->scene_tree->node.x;
-		server->grab_geobox.y += toplevel->scene_tree->node.y;
-
-		server->resize_edges = edges;
-	}
-}
-
-static void xdg_toplevel_request_move(struct wl_listener *listener, void *data) {
-	struct g_toplevel *toplevel = wl_container_of(listener, toplevel, request_move);
-
-	begin_interactive(toplevel, G_CURSOR_MOVE, 0);
-}
-
-static void xdg_toplevel_request_resize(struct wl_listener *listener, void *data) {
-	struct wlr_xdg_toplevel_resize_event *event = data;
-	struct g_toplevel *toplevel = wl_container_of(listener, toplevel, request_resize);
-
-	begin_interactive(toplevel, G_CURSOR_RESIZE, event->edges);
-}
-
-static void xdg_toplevel_request_maximize(struct wl_listener *listener, void *data) {
-	struct g_toplevel *toplevel = wl_container_of(listener, toplevel, request_maximize);
-	struct g_server *server = toplevel->server;
-
-	if (!toplevel->xdg_toplevel->base->initialized) return;
-
-	struct wlr_box output_box;
-	wlr_output_layout_get_box(server->output_layout, NULL, &output_box);
-
-	if (toplevel->maximized) {
-		wlr_scene_node_set_position(&toplevel->scene_tree->node, toplevel->restore_box.x, toplevel->restore_box.y);
-		wlr_xdg_toplevel_set_size(toplevel->xdg_toplevel, toplevel->restore_box.width, toplevel->restore_box.height);
-
-		toplevel->restore_box.x = 0;
-		toplevel->restore_box.y = 0;
-		toplevel->restore_box.width = 0;
-		toplevel->restore_box.height = 0;
-
-		toplevel->maximized = false;
-	} else {
-		toplevel->restore_box.x = toplevel->scene_tree->node.x;
-		toplevel->restore_box.y = toplevel->scene_tree->node.y;
-		toplevel->restore_box.width = toplevel->xdg_toplevel->base->current.geometry.width;
-		toplevel->restore_box.height = toplevel->xdg_toplevel->base->current.geometry.height;
-
-		wlr_scene_node_set_position(&toplevel->scene_tree->node, output_box.x, output_box.y);
-		wlr_xdg_toplevel_set_size(toplevel->xdg_toplevel, output_box.width, output_box.height);
-
-		toplevel->maximized = true;
-	}
-
-	wlr_xdg_surface_schedule_configure(toplevel->xdg_toplevel->base);
-}
-
-static void xdg_toplevel_request_fullscreen(struct wl_listener *listener, void *data) {
-	struct g_toplevel *toplevel = wl_container_of(listener, toplevel, request_fullscreen);
-
-	if (toplevel->xdg_toplevel->base->initialized) {
-		wlr_xdg_surface_schedule_configure(toplevel->xdg_toplevel->base);
-	}
-}
-
-static void server_new_xdg_toplevel(struct wl_listener *listener, void *data) {
-	struct g_server *server = wl_container_of(listener, server, new_xdg_toplevel);
-	struct wlr_xdg_toplevel *xdg_toplevel = data;
-
-	struct g_toplevel *toplevel = calloc(1, sizeof(*toplevel));
-	toplevel->server = server;
-	toplevel->xdg_toplevel = xdg_toplevel;
-
-	toplevel->scene_tree = wlr_scene_xdg_surface_create(&toplevel->server->scene->tree, xdg_toplevel->base);
-	toplevel->scene_tree->node.data = toplevel;
-	xdg_toplevel->base->data = toplevel->scene_tree;
-
-	toplevel->map.notify = xdg_toplevel_map;
-	wl_signal_add(&xdg_toplevel->base->surface->events.map, &toplevel->map);
-	toplevel->unmap.notify = xdg_toplevel_unmap;
-	wl_signal_add(&xdg_toplevel->base->surface->events.unmap, &toplevel->unmap);
-	toplevel->commit.notify = xdg_toplevel_commit;
-	wl_signal_add(&xdg_toplevel->base->surface->events.commit, &toplevel->commit);
-
-	toplevel->destroy.notify = xdg_toplevel_on_destroy;
-	wl_signal_add(&xdg_toplevel->events.destroy, &toplevel->destroy);
-
-	toplevel->request_move.notify = xdg_toplevel_request_move;
-	wl_signal_add(&xdg_toplevel->events.request_move, &toplevel->request_move);
-	toplevel->request_resize.notify = xdg_toplevel_request_resize;
-	wl_signal_add(&xdg_toplevel->events.request_resize, &toplevel->request_resize);
-	toplevel->request_maximize.notify = xdg_toplevel_request_maximize;
-	wl_signal_add(&xdg_toplevel->events.request_maximize, &toplevel->request_maximize);
-	toplevel->request_fullscreen.notify = xdg_toplevel_request_fullscreen;
-	wl_signal_add(&xdg_toplevel->events.request_fullscreen, &toplevel->request_fullscreen);
-
-
-	struct wlr_foreign_toplevel_handle_v1 *handle = wlr_foreign_toplevel_handle_v1_create(server->toplevel_manager);
-	toplevel->handle = handle;
-
-	const char* title = xdg_toplevel->title == NULL ? "" : strdup(xdg_toplevel->title);
-	const char* app_id = xdg_toplevel->title == NULL ? "" : strdup(xdg_toplevel->app_id);
-
-	wlr_foreign_toplevel_handle_v1_set_title(handle, title);
-	wlr_foreign_toplevel_handle_v1_set_app_id(handle, app_id);
-
-	g_navigator_on_create_toplevel(server->navigator->navgraph, toplevel);
-	g_switcher_add_toplevel(server->switcher, toplevel);
-}
-
 static void xdg_popup_commit(struct wl_listener *listener, void *data) {
 	struct g_popup *popup = wl_container_of(listener, popup, commit);
 
@@ -670,6 +431,13 @@ static void server_new_xdg_popup(struct wl_listener *listener, void *data) {
 
 	popup->destroy.notify = xdg_popup_on_destroy;
 	wl_signal_add(&xdg_popup->events.destroy, &popup->destroy);
+}
+
+static void server_new_xdg_toplevel(struct wl_listener *listener, void *data) {
+	struct g_server *server = wl_container_of(listener, server, new_xdg_toplevel);
+	struct wlr_xdg_toplevel *xdg_toplevel = data;
+
+	g_init_toplevel(server, xdg_toplevel);
 }
 
 int main(int argc, char *argv[]) {
@@ -759,9 +527,6 @@ int main(int argc, char *argv[]) {
 	wl_signal_add(&server.seat->events.request_set_selection,
 			&server.request_set_selection);
 
-	server.navigator = g_navigator_create();
-	server.switcher = g_switcher_create(&server);
-
 	server.toplevel_manager = wlr_foreign_toplevel_manager_v1_create(server.wl_display);
 
 	/* Add a Unix socket to the Wayland display. */
@@ -785,8 +550,6 @@ int main(int argc, char *argv[]) {
 
 	wlr_log(WLR_INFO, "Running Wayland compositor on WAYLAND_DISPLAY=%s", socket);
 	wl_display_run(server.wl_display);
-
-	g_navigator_destroy(server.navigator);
 
 	wl_display_destroy_clients(server.wl_display);
 

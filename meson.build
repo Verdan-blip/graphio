@@ -34,13 +34,9 @@ cairo = dependency('cairo')
 
 sources = [
   'src/main.c',
+  'src/g_toplevel.c',
   'src/g_launcher.c',
   'src/g_layer_surface.c',
-  'src/g_workspace.c',
-  'src/g_workspace_window.c',
-  'src/g_navgraph.c',
-  'src/g_navigator.c',
-  'src/ui/window_switcher/g_switcher.c',
   'src/utils/g_image.c',
   'src/utils/g_image_utils.c'
 ]

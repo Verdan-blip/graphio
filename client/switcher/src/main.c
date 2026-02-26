@@ -30,25 +30,21 @@ struct client_state {
     int running;
 };
 
-// Прототипы функций обратного вызова
 static void handle_global(void *data, struct wl_registry *registry,
                          uint32_t name, const char *interface, uint32_t version);
 static void handle_global_remove(void *data, struct wl_registry *registry,
                                 uint32_t name);
 
-// Интерфейс для wl_registry
 static const struct wl_registry_listener registry_listener = {
     .global = handle_global,
     .global_remove = handle_global_remove,
 };
 
-// Обработчики событий для toplevel_handle
 static void toplevel_handle_title(void *data,
                                  struct zwlr_foreign_toplevel_handle_v1 *handle,
                                  const char *title) {
     struct toplevel *toplevel = data;
     
-    // Освобождаем старый заголовок и сохраняем новый
     if (toplevel->title) {
         free(toplevel->title);
     }
@@ -77,7 +73,6 @@ static void toplevel_handle_state(void *data,
     uint32_t *states = state->data;
     size_t count = state->size / sizeof(uint32_t);
     
-    // Обновляем массив состояний
     if (toplevel->states) {
         free(toplevel->states);
     }
@@ -96,10 +91,9 @@ static void toplevel_handle_output_enter(void *data,
                                        struct zwlr_foreign_toplevel_handle_v1 *handle,
                                        struct wl_output *output) {
     struct toplevel *toplevel = data;
-    // В простом примере просто считаем, что output - это число
+
     uint32_t output_id = (uint32_t)(uintptr_t)output;
     
-    // Добавляем output в массив
     toplevel->outputs = realloc(toplevel->outputs,
                                (toplevel->outputs_count + 1) * sizeof(uint32_t));
     toplevel->outputs[toplevel->outputs_count++] = output_id;
@@ -113,10 +107,8 @@ static void toplevel_handle_output_leave(void *data,
     struct toplevel *toplevel = data;
     uint32_t output_id = (uint32_t)(uintptr_t)output;
     
-    // Удаляем output из массива
     for (size_t i = 0; i < toplevel->outputs_count; i++) {
         if (toplevel->outputs[i] == output_id) {
-            // Сдвигаем оставшиеся элементы
             memmove(&toplevel->outputs[i], &toplevel->outputs[i + 1],
                    (toplevel->outputs_count - i - 1) * sizeof(uint32_t));
             toplevel->outputs_count--;
@@ -132,8 +124,6 @@ static void toplevel_handle_parent(void *data,
                                   struct zwlr_foreign_toplevel_handle_v1 *parent) {
     struct toplevel *toplevel = data;
     
-    // В реальном коде нужно найти toplevel по handle parent
-    // Для простоты просто сохраняем указатель
     toplevel->parent = (struct toplevel *)parent;
     
     printf("Parent set\n");
@@ -150,7 +140,6 @@ static void toplevel_handle_done(void *data,
 static void toplevel_handle_closed(void *data,
                                   struct zwlr_foreign_toplevel_handle_v1 *handle) {
     struct toplevel *toplevel = data;
-    // struct client_state *state = toplevel->client_state;  // если нужно
     
     printf("Toplevel closed: [%s] %s\n",
            toplevel->app_id ? toplevel->app_id : "unknown",
