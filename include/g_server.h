@@ -7,6 +7,8 @@
 #include "include/g_navigator.h"
 #include "include/ui/window_switcher/g_switcher.h"
 
+struct g_layer_surface;
+
 enum g_cursor_mode {
 	G_CURSOR_PASSTHROUGH,
 	G_CURSOR_MOVE,

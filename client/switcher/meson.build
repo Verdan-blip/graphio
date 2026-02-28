@@ -1,5 +1,5 @@
 project(
-  'switcher', 
+  'gtk_main', 
   'c',
   version: '0.1.0',
   default_options: [
@@ -32,15 +32,18 @@ pixman = dependency('pixman-1')
 jansson = dependency('jansson')
 cairo = dependency('cairo')
 
+gtk = dependency('gtk+-3.0')
+gtk_layer = dependency('gtk-layer-shell-0')
+
 sources = [
-  'src/main.c',
+  'src/gtk_main.c',
   '../../protocols/src/wlr-foreign-toplevel-management-unstable-v1-protocol.c'
 ]
 
 protocols_inc = include_directories('../../protocols')
 
 executable(
-  'main',
+  'gtk_main',
   sources,
   include_directories: protocols_inc,
   dependencies: [
@@ -50,6 +53,8 @@ executable(
     xkbcommon,
     pixman,
     jansson,
-    cairo
+    cairo,
+    gtk,
+    gtk_layer
   ]
 )

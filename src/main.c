@@ -54,34 +54,6 @@ static bool handle_keybinding(struct g_server *server, xkb_keysym_t sym) {
 		break;
 	}
 
-	case XKB_KEY_W: {
-		//struct g_workspace_window *window = server->navigator->navgraph->tops[TOP];
-		//if (window != NULL) focus_toplevel(window->toplevel);
-		//g_switcher_show(server->switcher);
-		break;
-	}
-
-	case XKB_KEY_S: {
-		//struct g_workspace_window *window = server->navigator->navgraph->tops[BOTTOM];
-		//if (window != NULL) focus_toplevel(window->toplevel);
-		//g_switcher_show(server->switcher);
-		break;
-	}
-
-	case XKB_KEY_A: {
-		//struct g_workspace_window *window = server->navigator->navgraph->tops[LEFT];
-		//if (window != NULL) focus_toplevel(window->toplevel);
-		//g_switcher_show(server->switcher);
-		break;
-	}
-
-	case XKB_KEY_D: {
-		//struct g_workspace_window *window = server->navigator->navgraph->tops[RIGHT];
-		//if (window != NULL) focus_toplevel(window->toplevel);
-		//g_switcher_show(server->switcher);
-		break;
-	}
-
 	default:
 		return false;
 	}
@@ -94,10 +66,8 @@ static void keyboard_handle_key(struct wl_listener *listener, void *data) {
 	struct wlr_keyboard_key_event *event = data;
 	struct wlr_seat *seat = server->seat;
 
-	/* Translate libinput keycode -> xkbcommon */
 	uint32_t keycode = event->keycode + 8;
 
-	/* Get a list of keysyms based on the keymap for this keyboard */
 	const xkb_keysym_t *syms;
 	int nsyms = xkb_state_key_get_syms(keyboard->wlr_keyboard->xkb_state, keycode, &syms);
 
@@ -110,7 +80,6 @@ static void keyboard_handle_key(struct wl_listener *listener, void *data) {
 	}
 
 	if (!handled) {
-		/* Otherwise, we pass it along to the client. */
 		wlr_seat_set_keyboard(seat, keyboard->wlr_keyboard);
 		wlr_seat_keyboard_notify_key(seat, event->time_msec,
 			event->keycode, event->state);
@@ -440,6 +409,13 @@ static void server_new_xdg_toplevel(struct wl_listener *listener, void *data) {
 	g_init_toplevel(server, xdg_toplevel);
 }
 
+static void server_new_wlr_layer_surface(struct wl_listener *listener, void *data) {
+	struct g_server *server = wl_container_of(listener, server, new_layer);
+    struct wlr_layer_surface_v1 *wlr_layer_surface = data;
+
+	g_init_layer_surface(server, wlr_layer_surface);
+}
+
 int main(int argc, char *argv[]) {
 	wlr_log_init(WLR_DEBUG, NULL);
 
@@ -492,7 +468,7 @@ int main(int argc, char *argv[]) {
 	server.layer_shell = wlr_layer_shell_v1_create(server.wl_display, 3);
 	
 	wl_list_init(&server.layer_surfaces);
-	server.new_layer.notify = g_layer_on_create;
+	server.new_layer.notify = server_new_wlr_layer_surface;
 	wl_signal_add(&server.layer_shell->events.new_surface, &server.new_layer);
 
 	// Cursor
