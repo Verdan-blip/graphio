@@ -1,5 +1,5 @@
 project(
-  'switcher', 
+  'wallpaper', 
   'c',
   version: '0.1.0',
   default_options: [

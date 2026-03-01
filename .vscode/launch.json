@@ -2,7 +2,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Debug Meson Project",
+            "name": "Graphio",
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/build/graphio",
@@ -26,33 +26,17 @@
             "miDebuggerPath": "/usr/bin/gdb"
         },
         {
-            "name": "Debug with X11 fallback",
+            "name": "Wallpaper",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/graphio",
+            "program": "${workspaceFolder}/client/wallpaper/build/main",
             "args": [],
             "stopAtEntry": false,
-            "cwd": "${workspaceFolder}",
-            "environment": [
-                {
-                    "name": "WAYLAND_DISPLAY",
-                    "value": ""
-                },
-                {
-                    "name": "GDK_BACKEND",
-                    "value": "x11"
-                }
-            ],
+            "cwd": "${workspaceFolder}/client/wallpaper",
             "externalConsole": false,
             "MIMode": "gdb",
-            "setupCommands": [
-                {
-                    "description": "Включить pretty-printing",
-                    "text": "-enable-pretty-printing",
-                    "ignoreFailures": true
-                }
-            ],
-            "preLaunchTask": "meson compile"
+            "preLaunchTask": "meson compile",
+            "miDebuggerPath": "/usr/bin/gdb"
         }
     ]
 }

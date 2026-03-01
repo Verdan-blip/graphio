@@ -20,8 +20,13 @@ struct g_server {
 	struct wlr_backend *backend;
 	struct wlr_renderer *renderer;
 	struct wlr_allocator *allocator;
+
 	struct wlr_scene *scene;
 	struct wlr_scene_output_layout *scene_layout;
+
+	struct wlr_scene_tree *background_tree;
+	struct wlr_scene_tree *main_tree;
+	struct wlr_scene_tree *foregound_tree;
 
 	struct wlr_xdg_shell *xdg_shell;
 	struct wl_listener new_xdg_toplevel;
@@ -87,5 +92,7 @@ struct g_keyboard {
 };
 
 void reset_cursor_mode(struct g_server *server);
+
+struct wlr_output* g_server_get_current_output(struct g_server *server);
 
 #endif

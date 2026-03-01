@@ -9,6 +9,8 @@ struct g_server;
 struct g_layer_surface {
     struct wl_list link;
 
+    struct g_server *server;
+
     struct wlr_layer_surface_v1 *wlr_layer_surface;
     struct wlr_scene_tree *scene_tree;
 

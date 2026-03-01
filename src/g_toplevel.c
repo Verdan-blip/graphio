@@ -16,7 +16,7 @@ struct g_toplevel *g_toplevel_at(
 		struct wlr_surface **surface, double *sx, double *sy) {
 
 	struct wlr_scene_node *node = wlr_scene_node_at(
-		&server->scene->tree.node, lx, ly, sx, sy);
+		&server->main_tree->node, lx, ly, sx, sy);
 	if (node == NULL || node->type != WLR_SCENE_NODE_BUFFER) {
 		return NULL;
 	}
@@ -33,7 +33,12 @@ struct g_toplevel *g_toplevel_at(
 	while (tree != NULL && tree->node.data == NULL) {
 		tree = tree->node.parent;
 	}
-	return tree->node.data;
+
+	if (tree != NULL) {
+		return tree->node.data;
+	}
+
+	return NULL;
 }
 
 static void begin_interactive(struct g_toplevel *toplevel, enum g_cursor_mode mode, uint32_t edges) {
@@ -170,7 +175,7 @@ void g_init_toplevel(struct g_server *server, struct wlr_xdg_toplevel *xdg_tople
 	toplevel->server = server;
 	toplevel->xdg_toplevel = xdg_toplevel;
 
-	toplevel->scene_tree = wlr_scene_xdg_surface_create(&toplevel->server->scene->tree, xdg_toplevel->base);
+	toplevel->scene_tree = wlr_scene_xdg_surface_create(toplevel->server->main_tree, xdg_toplevel->base);
 	toplevel->scene_tree->node.data = toplevel;
 	xdg_toplevel->base->data = toplevel->scene_tree;
 

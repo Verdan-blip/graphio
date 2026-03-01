@@ -40,6 +40,16 @@
 #include "include/ui/window_switcher/g_switcher.h"
 #include "include/utils/g_image_utils.h"
 
+struct wlr_output* g_server_get_current_output(struct g_server *server) {
+	struct wlr_cursor *cursor = server->cursor;
+
+	return wlr_output_layout_output_at(
+		server->output_layout, 
+		cursor->x,
+		cursor->y
+	);
+}
+
 static void keyboard_handle_modifiers(struct wl_listener *listener, void *data) {
 	struct g_keyboard *keyboard = wl_container_of(listener, keyboard, modifiers);
 
@@ -455,6 +465,15 @@ int main(int argc, char *argv[]) {
 
 	server.scene = wlr_scene_create();
 	server.scene_layout = wlr_scene_attach_output_layout(server.scene, server.output_layout);
+
+	server.background_tree = wlr_scene_tree_create(&server.scene->tree);
+	server.foregound_tree = wlr_scene_tree_create(&server.scene->tree);
+	server.main_tree = wlr_scene_tree_create(&server.scene->tree);
+
+	wlr_scene_node_raise_to_top(&server.foregound_tree->node);
+	wlr_scene_node_lower_to_bottom(&server.background_tree->node);
+
+	wlr_scene_node_place_below(&server.main_tree->node, &server.foregound_tree->node);
 
 	// Toplevel
 	wl_list_init(&server.toplevels);
