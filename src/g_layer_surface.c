@@ -175,6 +175,7 @@ void g_init_layer_surface(struct g_server *server, struct wlr_layer_surface_v1 *
             server->foregound_tree, 
             wlr_layer_surface
         );
+        server->switcher_surface = wlr_layer_surface->surface;
     } else {
         wlr_log(WLR_ERROR, "g_layer_surface: unsupported layer type, change to LAYER_BACKGROUND");
         scene_surface = wlr_scene_layer_surface_v1_create(

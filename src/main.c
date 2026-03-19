@@ -26,6 +26,7 @@
 #include <wlr/types/wlr_xcursor_manager.h>
 #include <wlr/types/wlr_xdg_shell.h>
 #include <wlr/types/wlr_layer_shell_v1.h>
+#include <wayland-server-protocol.h>
 #include <wlr/util/log.h>
 #include <xkbcommon/xkbcommon.h>
 #include <xkbcommon/xkbcommon-keysyms.h>
@@ -70,6 +71,42 @@ static bool handle_keybinding(struct g_server *server, xkb_keysym_t sym) {
 	return true;
 }
 
+static bool handle_key_press(struct g_server *server, struct g_keyboard *keyboard, xkb_keysym_t sym) {
+	switch (sym) {
+	case XKB_KEY_Super_L: {
+		wlr_scene_node_set_enabled(&server->foregound_tree->node, true);
+
+		if (server->switcher_surface) {
+			wlr_seat_set_keyboard(server->seat, keyboard->wlr_keyboard);
+			wlr_seat_keyboard_notify_enter(
+					server->seat, 
+				server->switcher_surface,
+				keyboard->wlr_keyboard->keycodes, 
+				keyboard->wlr_keyboard->num_keycodes, 
+				&keyboard->wlr_keyboard->modifiers
+			);
+		}
+		return true;
+	}
+	default:
+		return false;
+	}
+	return true;
+}
+
+static bool handle_key_release(struct g_server *server, xkb_keysym_t sym) {
+	switch (sym) {
+	case XKB_KEY_Super_L: {
+		wlr_scene_node_set_enabled(&server->foregound_tree->node, false);
+		wlr_seat_keyboard_clear_focus(server->seat);
+		return true;
+	}
+	default:
+		return false;
+	}
+	return true;
+}
+
 static void keyboard_handle_key(struct wl_listener *listener, void *data) {
 	struct g_keyboard *keyboard = wl_container_of(listener, keyboard, key);
 	struct g_server *server = keyboard->server;
@@ -81,11 +118,24 @@ static void keyboard_handle_key(struct wl_listener *listener, void *data) {
 	const xkb_keysym_t *syms;
 	int nsyms = xkb_state_key_get_syms(keyboard->wlr_keyboard->xkb_state, keycode, &syms);
 
-	bool handled = false;
 	uint32_t modifiers = wlr_keyboard_get_modifiers(keyboard->wlr_keyboard);
+
+	bool handled = false;
 	if ((modifiers & WLR_MODIFIER_ALT) && event->state == WL_KEYBOARD_KEY_STATE_PRESSED) {
 		for (int i = 0; i < nsyms; i++) {
 			handled = handle_keybinding(server, syms[i]);
+		}
+	}
+
+	if (event->state == WL_KEYBOARD_KEY_STATE_PRESSED) {
+		for (int i = 0; i < nsyms; i++) {
+			handled = handle_key_press(server, keyboard, syms[i]);
+		}
+	}
+
+	if (event->state == WL_KEYBOARD_KEY_STATE_RELEASED) {
+		for (int i = 0; i < nsyms; i++) {
+			handled = handle_key_release(server, syms[i]);
 		}
 	}
 
@@ -374,6 +424,15 @@ static void server_new_output(struct wl_listener *listener, void *data) {
 	struct wlr_output_layout_output *l_output = wlr_output_layout_add_auto(server->output_layout, wlr_output);
 	struct wlr_scene_output *scene_output = wlr_scene_output_create(server->scene, wlr_output);
 	wlr_scene_output_layout_add_output(server->scene_layout, l_output, scene_output);
+
+	// Dummy wallpaper
+	float color[4] = { 0.1f, 0.2f, 0.3f, 1.0f };
+	wlr_scene_rect_create(
+		server->background_tree, 
+		wlr_output->width, 
+		wlr_output->height, 
+		color
+	);
 }
 
 static void xdg_popup_commit(struct wl_listener *listener, void *data) {
@@ -469,6 +528,8 @@ int main(int argc, char *argv[]) {
 	server.background_tree = wlr_scene_tree_create(&server.scene->tree);
 	server.foregound_tree = wlr_scene_tree_create(&server.scene->tree);
 	server.main_tree = wlr_scene_tree_create(&server.scene->tree);
+
+	wlr_scene_node_set_enabled(&server.foregound_tree->node, false);
 
 	wlr_scene_node_raise_to_top(&server.foregound_tree->node);
 	wlr_scene_node_lower_to_bottom(&server.background_tree->node);

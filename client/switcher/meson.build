@@ -37,6 +37,10 @@ gtk_layer = dependency('gtk-layer-shell-0')
 
 sources = [
   'src/main.c',
+  'src/sw_switcher.c',
+  'src/sw_toplevel.c',
+  'src/ui/sw_toplevel_widget.c',
+  'src/ui/sw_switcher_widget.c',
   '../../protocols/src/wlr-foreign-toplevel-management-unstable-v1-protocol.c'
 ]
 

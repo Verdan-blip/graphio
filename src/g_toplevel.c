@@ -1,12 +1,18 @@
 #define _POSIX_C_SOURCE 200809L
 
+#include "xdg-shell-protocol.h"
+#include <wayland-server-core.h>
+#include <wayland-util.h>
+
 #include <string.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <wlr/types/wlr_xdg_shell.h>
 #include <wlr/types/wlr_scene.h>
 #include <wlr/types/wlr_seat.h>
 #include <wlr/types/wlr_output_layout.h>
 #include <wlr/types/wlr_cursor.h>
+#include <wlr/types/wlr_xdg_shell.h>
 
 #include "include/g_toplevel.h"
 #include "include/g_server.h"
@@ -108,6 +114,8 @@ static void xdg_toplevel_on_destroy(struct wl_listener *listener, void *data) {
 	wl_list_remove(&toplevel->request_resize.link);
 	wl_list_remove(&toplevel->request_maximize.link);
 	wl_list_remove(&toplevel->request_fullscreen.link);
+	wl_list_remove(&toplevel->set_app_id.link);
+	wl_list_remove(&toplevel->set_title.link);
 
 	free(toplevel);
 }
@@ -170,6 +178,26 @@ static void xdg_toplevel_request_fullscreen(struct wl_listener *listener, void *
 	wlr_foreign_toplevel_handle_v1_set_fullscreen(toplevel->handle, false);
 }
 
+static void xdg_toplevel_set_app_id(struct wl_listener *listener, void *data) {
+	struct g_toplevel *toplevel = wl_container_of(listener, toplevel, set_app_id);
+
+	struct wlr_xdg_toplevel *xdg_toplevel = toplevel->xdg_toplevel;
+
+	const char* app_id = xdg_toplevel->title == NULL ? "" : strdup(xdg_toplevel->app_id);
+
+	wlr_foreign_toplevel_handle_v1_set_app_id(toplevel->handle, app_id);
+}
+
+static void xdg_toplevel_set_title(struct wl_listener *listener, void *data) {
+	struct g_toplevel *toplevel = wl_container_of(listener, toplevel, set_title);
+
+	struct wlr_xdg_toplevel *xdg_toplevel = toplevel->xdg_toplevel;
+
+	const char* title = xdg_toplevel->title == NULL ? "" : strdup(xdg_toplevel->title);
+
+	wlr_foreign_toplevel_handle_v1_set_title(toplevel->handle, title);
+}
+
 void g_init_toplevel(struct g_server *server, struct wlr_xdg_toplevel *xdg_toplevel) {
 	struct g_toplevel *toplevel = calloc(1, sizeof(*toplevel));
 	toplevel->server = server;
@@ -198,15 +226,14 @@ void g_init_toplevel(struct g_server *server, struct wlr_xdg_toplevel *xdg_tople
 	toplevel->request_fullscreen.notify = xdg_toplevel_request_fullscreen;
 	wl_signal_add(&xdg_toplevel->events.request_fullscreen, &toplevel->request_fullscreen);
 
+	toplevel->set_app_id.notify = xdg_toplevel_set_app_id;
+	wl_signal_add(&xdg_toplevel->events.set_app_id, &toplevel->set_app_id);
+	toplevel->set_title.notify = xdg_toplevel_set_title;
+	wl_signal_add(&xdg_toplevel->events.set_title, &toplevel->set_title);
+
 
 	struct wlr_foreign_toplevel_handle_v1 *handle = wlr_foreign_toplevel_handle_v1_create(server->toplevel_manager);
 	toplevel->handle = handle;
-
-	const char* title = xdg_toplevel->title == NULL ? "" : strdup(xdg_toplevel->title);
-	const char* app_id = xdg_toplevel->title == NULL ? "" : strdup(xdg_toplevel->app_id);
-
-	wlr_foreign_toplevel_handle_v1_set_title(handle, title);
-	wlr_foreign_toplevel_handle_v1_set_app_id(handle, app_id);
 }
 
 void g_focus_toplevel(struct g_toplevel *toplevel) {

@@ -28,6 +28,8 @@ struct g_server {
 	struct wlr_scene_tree *main_tree;
 	struct wlr_scene_tree *foregound_tree;
 
+	struct wlr_surface *switcher_surface;
+
 	struct wlr_xdg_shell *xdg_shell;
 	struct wl_listener new_xdg_toplevel;
 	struct wl_listener new_xdg_popup;
