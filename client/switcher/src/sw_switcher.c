@@ -63,6 +63,7 @@ void sw_switcher_set_activated(
         slot_toplevel->activated = false;
     }
 
+    sw_toplevel_activate(toplevel);
     sw_switcher_widget_redraw(switcher->switcher_widget);
 }
 

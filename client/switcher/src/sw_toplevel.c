@@ -125,6 +125,4 @@ void sw_toplevel_activate(struct sw_toplevel *toplevel) {
         toplevel->handle, 
         switcher->seat
     );
-
-    sw_switcher_set_activated(switcher, toplevel);
 }

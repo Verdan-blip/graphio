@@ -5,6 +5,8 @@
 #include <wlr/types/wlr_foreign_toplevel_management_v1.h>
 #include <wlr/types/wlr_xdg_shell.h>
 
+#include "include/g_toplevel_handle.h"
+
 struct g_server;
 
 struct g_toplevel {
@@ -31,12 +33,12 @@ struct g_toplevel {
 	struct wl_listener set_app_id;
 	struct wl_listener set_title;
 
-	struct wlr_foreign_toplevel_handle_v1 *handle;
+	struct g_toplevel_handle *handle;
 };
 
-void g_init_toplevel(struct g_server *server, struct wlr_xdg_toplevel *toplevel);
+void g_toplevel_init(struct g_server *server, struct wlr_xdg_toplevel *toplevel);
 
-void g_focus_toplevel(struct g_toplevel *toplevel);
+void g_toplevel_focus(struct g_toplevel *toplevel);
 
 struct g_toplevel* g_toplevel_at(
     struct g_server *server, 

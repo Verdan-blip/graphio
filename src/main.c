@@ -339,7 +339,7 @@ static void server_cursor_button(struct wl_listener *listener, void *data) {
 		double sx, sy;
 		struct wlr_surface *surface = NULL;
 		struct g_toplevel *toplevel = g_toplevel_at(server, server->cursor->x, server->cursor->y, &surface, &sx, &sy);
-		g_focus_toplevel(toplevel);
+		g_toplevel_focus(toplevel);
 	}
 }
 
@@ -475,7 +475,7 @@ static void server_new_xdg_toplevel(struct wl_listener *listener, void *data) {
 	struct g_server *server = wl_container_of(listener, server, new_xdg_toplevel);
 	struct wlr_xdg_toplevel *xdg_toplevel = data;
 
-	g_init_toplevel(server, xdg_toplevel);
+	g_toplevel_init(server, xdg_toplevel);
 }
 
 static void server_new_wlr_layer_surface(struct wl_listener *listener, void *data) {

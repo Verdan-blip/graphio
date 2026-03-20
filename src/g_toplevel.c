@@ -1,12 +1,10 @@
 #define _POSIX_C_SOURCE 200809L
 
-#include "xdg-shell-protocol.h"
 #include <wayland-server-core.h>
 #include <wayland-util.h>
 
 #include <string.h>
 #include <stdlib.h>
-#include <stdio.h>
 #include <wlr/types/wlr_xdg_shell.h>
 #include <wlr/types/wlr_scene.h>
 #include <wlr/types/wlr_seat.h>
@@ -16,6 +14,7 @@
 
 #include "include/g_toplevel.h"
 #include "include/g_server.h"
+#include "include/g_toplevel_handle.h"
 
 struct g_toplevel *g_toplevel_at(
 		struct g_server *server, double lx, double ly,
@@ -79,7 +78,7 @@ static void xdg_toplevel_map(struct wl_listener *listener, void *data) {
 
 	wl_list_insert(&toplevel->server->toplevels, &toplevel->link);
 
-	g_focus_toplevel(toplevel);
+	g_toplevel_focus(toplevel);
 }
 
 static void xdg_toplevel_unmap(struct wl_listener *listener, void *data) {
@@ -104,8 +103,6 @@ static void xdg_toplevel_on_destroy(struct wl_listener *listener, void *data) {
 	struct g_toplevel *toplevel = wl_container_of(listener, toplevel, destroy);
 	struct g_server *server = toplevel->server;
 
-	wlr_foreign_toplevel_handle_v1_destroy(toplevel->handle);
-
 	wl_list_remove(&toplevel->map.link);
 	wl_list_remove(&toplevel->unmap.link);
 	wl_list_remove(&toplevel->commit.link);
@@ -116,6 +113,8 @@ static void xdg_toplevel_on_destroy(struct wl_listener *listener, void *data) {
 	wl_list_remove(&toplevel->request_fullscreen.link);
 	wl_list_remove(&toplevel->set_app_id.link);
 	wl_list_remove(&toplevel->set_title.link);
+
+	g_toplevel_handle_destroy(toplevel->handle);
 
 	free(toplevel);
 }
@@ -165,7 +164,8 @@ static void xdg_toplevel_request_maximize(struct wl_listener *listener, void *da
 	}
 
 	wlr_xdg_surface_schedule_configure(toplevel->xdg_toplevel->base);
-	wlr_foreign_toplevel_handle_v1_set_maximized(toplevel->handle, toplevel->maximized);
+	
+	g_toplevel_handle_notify_maximized(toplevel->handle, toplevel->maximized);
 }
 
 static void xdg_toplevel_request_fullscreen(struct wl_listener *listener, void *data) {
@@ -175,7 +175,7 @@ static void xdg_toplevel_request_fullscreen(struct wl_listener *listener, void *
 		wlr_xdg_surface_schedule_configure(toplevel->xdg_toplevel->base);
 	}
 
-	wlr_foreign_toplevel_handle_v1_set_fullscreen(toplevel->handle, false);
+	g_toplevel_handle_notify_fullscreen(toplevel->handle, false);
 }
 
 static void xdg_toplevel_set_app_id(struct wl_listener *listener, void *data) {
@@ -185,7 +185,7 @@ static void xdg_toplevel_set_app_id(struct wl_listener *listener, void *data) {
 
 	const char* app_id = xdg_toplevel->title == NULL ? "" : strdup(xdg_toplevel->app_id);
 
-	wlr_foreign_toplevel_handle_v1_set_app_id(toplevel->handle, app_id);
+	g_toplevel_handle_notify_app_id_changed(toplevel->handle, app_id);
 }
 
 static void xdg_toplevel_set_title(struct wl_listener *listener, void *data) {
@@ -195,10 +195,10 @@ static void xdg_toplevel_set_title(struct wl_listener *listener, void *data) {
 
 	const char* title = xdg_toplevel->title == NULL ? "" : strdup(xdg_toplevel->title);
 
-	wlr_foreign_toplevel_handle_v1_set_title(toplevel->handle, title);
+	g_toplevel_handle_notify_title_changed(toplevel->handle, title);
 }
 
-void g_init_toplevel(struct g_server *server, struct wlr_xdg_toplevel *xdg_toplevel) {
+void g_toplevel_init(struct g_server *server, struct wlr_xdg_toplevel *xdg_toplevel) {
 	struct g_toplevel *toplevel = calloc(1, sizeof(*toplevel));
 	toplevel->server = server;
 	toplevel->xdg_toplevel = xdg_toplevel;
@@ -231,12 +231,14 @@ void g_init_toplevel(struct g_server *server, struct wlr_xdg_toplevel *xdg_tople
 	toplevel->set_title.notify = xdg_toplevel_set_title;
 	wl_signal_add(&xdg_toplevel->events.set_title, &toplevel->set_title);
 
+	struct wlr_foreign_toplevel_handle_v1 *wlr_handle = wlr_foreign_toplevel_handle_v1_create(server->toplevel_manager);
+	struct g_toplevel_handle *handle = g_toplevel_handle_create(wlr_handle);
 
-	struct wlr_foreign_toplevel_handle_v1 *handle = wlr_foreign_toplevel_handle_v1_create(server->toplevel_manager);
 	toplevel->handle = handle;
+	handle->toplevel = toplevel;
 }
 
-void g_focus_toplevel(struct g_toplevel *toplevel) {
+void g_toplevel_focus(struct g_toplevel *toplevel) {
 	if (toplevel == NULL) return;
 
 	struct g_server *server = toplevel->server;
@@ -253,7 +255,7 @@ void g_focus_toplevel(struct g_toplevel *toplevel) {
 			struct g_toplevel *toplevel = scene_tree->node.data;
 
 			wlr_xdg_toplevel_set_activated(prev_toplevel, false);
-			wlr_foreign_toplevel_handle_v1_set_activated(toplevel->handle, false);
+			g_toplevel_handle_notify_activated(toplevel->handle, false);
 			toplevel->focused = false;
 		}
 	}
@@ -265,7 +267,8 @@ void g_focus_toplevel(struct g_toplevel *toplevel) {
 	wl_list_insert(&server->toplevels, &toplevel->link);
 
 	wlr_xdg_toplevel_set_activated(toplevel->xdg_toplevel, true);
-	wlr_foreign_toplevel_handle_v1_set_activated(toplevel->handle, true);
+
+	g_toplevel_handle_notify_activated(toplevel->handle, true);
 
 	toplevel->focused = true;
 
