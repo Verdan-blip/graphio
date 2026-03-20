@@ -1,3 +1,4 @@
+#include "include/ui/sw_toplevel_widget.h"
 #define _POSIX_C_SOURCE 200809L
 
 #include <wayland-client-protocol.h>
@@ -36,24 +37,42 @@ gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, gpointer data) {
     struct sw_switcher_widget *switcher_widget = data;
     struct sw_switcher *switcher = switcher_widget->model;
 
+    struct sw_toplevel **toplevels = switcher->primary_toplevels;
+
     switch (event->keyval) {
         case GDK_KEY_Up: {
-            sw_switcher_set_primary_activated(switcher, INDEX_TOP);
+            struct sw_toplevel *toplevel = toplevels[INDEX_TOP];
+            if (toplevel == NULL) return true;
+
+            struct sw_toplevel_widget *toplevel_widget = toplevel->toplevel_widget;
+            sw_switcher_widget_mark_toplevel_activated(switcher_widget, toplevel_widget);
             return true;
         }
 
         case GDK_KEY_Down: {
-            sw_switcher_set_primary_activated(switcher, INDEX_BOTTOM);
+            struct sw_toplevel *toplevel = toplevels[INDEX_BOTTOM];
+            if (toplevel == NULL) return true;
+
+            struct sw_toplevel_widget *toplevel_widget = toplevel->toplevel_widget;
+            sw_switcher_widget_mark_toplevel_activated(switcher_widget, toplevel_widget);
             return true;
         }
 
         case GDK_KEY_Right: {
-            sw_switcher_set_primary_activated(switcher, INDEX_RIGHT);
+            struct sw_toplevel *toplevel = toplevels[INDEX_RIGHT];
+            if (toplevel == NULL) return true;
+
+            struct sw_toplevel_widget *toplevel_widget = toplevel->toplevel_widget;
+            sw_switcher_widget_mark_toplevel_activated(switcher_widget, toplevel_widget);
             return true;
         }
 
         case GDK_KEY_Left: {
-            sw_switcher_set_primary_activated(switcher, INDEX_LEFT);
+            struct sw_toplevel *toplevel = toplevels[INDEX_LEFT];
+            if (toplevel == NULL) return true;
+
+            struct sw_toplevel_widget *toplevel_widget = toplevel->toplevel_widget;
+            sw_switcher_widget_mark_toplevel_activated(switcher_widget, toplevel_widget);
             return true;
         }
     }
@@ -63,10 +82,19 @@ gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, gpointer data) {
 
 gboolean on_key_release(GtkWidget *widget, GdkEventKey *event, gpointer data) {
     struct sw_switcher_widget *switcher_widget = data;
+    struct sw_switcher *switcher = switcher_widget->model;
 
-    if (event->keyval == GDK_KEY_C) {
+    struct sw_toplevel_widget *active_toplevel_widget = switcher_widget->active_toplevel_widget;
+
+    if (active_toplevel_widget == NULL) return true;
+
+    struct sw_toplevel *active_toplevel = active_toplevel_widget->model;
+
+    if (event->keyval == GDK_KEY_Super_L) {
+        sw_switcher_set_activated(switcher, active_toplevel);
         return true;
     }
+
     return false;
 }
 

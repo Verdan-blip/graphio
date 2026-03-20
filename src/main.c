@@ -97,9 +97,9 @@ static bool handle_key_press(struct g_server *server, struct g_keyboard *keyboar
 static bool handle_key_release(struct g_server *server, xkb_keysym_t sym) {
 	switch (sym) {
 	case XKB_KEY_Super_L: {
-		wlr_scene_node_set_enabled(&server->foregound_tree->node, false);
-		wlr_seat_keyboard_clear_focus(server->seat);
-		return true;
+		//wlr_scene_node_set_enabled(&server->foregound_tree->node, false);
+		//wlr_seat_keyboard_clear_focus(server->seat);
+		//return true;
 	}
 	default:
 		return false;
@@ -537,6 +537,8 @@ int main(int argc, char *argv[]) {
 	wlr_scene_node_place_below(&server.main_tree->node, &server.foregound_tree->node);
 
 	// Toplevel
+	server.current_toplevel = NULL;
+	
 	wl_list_init(&server.toplevels);
 	server.xdg_shell = wlr_xdg_shell_create(server.wl_display, 3);
 	server.new_xdg_toplevel.notify = server_new_xdg_toplevel;

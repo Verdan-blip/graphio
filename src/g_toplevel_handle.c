@@ -1,16 +1,22 @@
 #include <stdbool.h>
 #include <stdlib.h>
-#include <stdio.h>
+
+#include <wlr/types/wlr_seat.h>
+#include <wlr/types/wlr_scene.h>
 #include <wayland-server-core.h>
 #include <wayland-util.h>
 
 #include "include/g_toplevel_handle.h"
+#include "include/g_server.h"
 #include "include/g_toplevel.h"
 
 #include "wlr/types/wlr_foreign_toplevel_management_v1.h"
 
 static void on_request_activate(struct wl_listener *listener, void *data) {
     struct g_toplevel_handle *handle = wl_container_of(listener, handle, on_request_activate);
+    struct g_server *server = handle->toplevel->server;
+
+    wlr_scene_node_set_enabled(&server->foregound_tree->node, false);
 
     g_toplevel_focus(handle->toplevel);
 }
@@ -48,13 +54,6 @@ struct g_toplevel_handle* g_toplevel_handle_create(
     wl_signal_add(&wlr_handle->events.request_minimize, &handle->on_request_minimize);
 
     return handle;
-}
-
-void g_toplevel_handle_set_output(
-    struct g_toplevel_handle *handle,
-    struct wlr_output *output
-) {
-    wlr_foreign_toplevel_handle_v1_output_enter(handle->wlr_handle, output);
 }
 
 void g_toplevel_handle_notify_app_id_changed(

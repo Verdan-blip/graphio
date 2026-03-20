@@ -43,7 +43,11 @@ void sw_handle_toplevel(
     toplevel->activated = false;
 
     sw_toplevel_widget_init(toplevel);
-    sw_switcher_widget_on_add_toplevel(switcher->switcher_widget);
+    
+    sw_switcher_widget_on_add_toplevel(
+        switcher->switcher_widget, 
+        toplevel->toplevel_widget
+    );
 
     zwlr_foreign_toplevel_handle_v1_add_listener(handle, &toplevel_impl, toplevel);
 }
@@ -71,6 +75,9 @@ void sw_handle_app_id(
 
     if (toplevel->title) free(toplevel->app_id);
     toplevel->app_id = strdup(app_id ? app_id : "unknown");
+
+    sw_toplevel_widget_load_icon(toplevel->toplevel_widget);
+    sw_switcher_widget_redraw(toplevel->switcher->switcher_widget);
 
     printf("sw_toplevel: handled app_id %s\n", app_id);
 }
@@ -106,7 +113,11 @@ void sw_handle_closed(
     struct sw_toplevel *toplevel = data;
     struct sw_switcher *switcher = toplevel->switcher;
 
-    sw_switcher_widget_on_remove_toplevel(toplevel->switcher->switcher_widget);
+    sw_switcher_widget_on_remove_toplevel(
+        toplevel->switcher->switcher_widget,
+        toplevel->toplevel_widget
+    );
+
     sw_toplevel_widget_destroy(toplevel->toplevel_widget);
 
     if (toplevel->app_id) free(toplevel->app_id);

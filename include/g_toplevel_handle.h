@@ -20,11 +20,6 @@ struct g_toplevel_handle* g_toplevel_handle_create(
     struct wlr_foreign_toplevel_handle_v1 *wlr_handle
 );
 
-void g_toplevel_handle_set_output(
-    struct g_toplevel_handle *handle,
-    struct wlr_output *output
-);
-
 void g_toplevel_handle_notify_title_changed(
     struct g_toplevel_handle *handle, 
     const char* title

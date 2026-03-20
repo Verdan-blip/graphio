@@ -47,6 +47,8 @@ void sw_switcher_set_activated(
     struct sw_switcher *switcher, 
     struct sw_toplevel *toplevel
 ) {
+    if (toplevel == NULL) return;
+
     toplevel->activated = true;
 
     for (int i = 0; i < PRIMATY_TOPLEVEL_COUNT; i++) {

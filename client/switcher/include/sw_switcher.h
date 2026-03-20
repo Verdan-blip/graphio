@@ -20,7 +20,6 @@ struct sw_switcher {
     struct wl_seat *seat;
 
     struct wl_list toplevels;
-
     struct sw_toplevel *primary_toplevels[4];
 
     struct sw_switcher_widget *switcher_widget;

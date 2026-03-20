@@ -144,6 +144,13 @@ static void g_layer_surface_on_commit(struct wl_listener *listener, void *data) 
 
 static void g_layer_surface_on_destroy(struct wl_listener *listener, void *data) {
     struct g_layer_surface *layer_surface = wl_container_of(listener, layer_surface, destroy);
+    enum zwlr_layer_shell_v1_layer layer = layer_surface->wlr_layer_surface->current.layer;
+
+    struct g_server *server = layer_surface->server;
+
+    if (layer == ZWLR_LAYER_SHELL_V1_LAYER_OVERLAY) {
+        server->switcher_surface = NULL;
+    } 
 
     wl_list_remove(&layer_surface->map.link);
     wl_list_remove(&layer_surface->unmap.link);

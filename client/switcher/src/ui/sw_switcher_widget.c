@@ -102,6 +102,8 @@ void sw_switcher_widget_init(struct sw_switcher *switcher, GtkWidget *window) {
     switcher_widget->width = 1;
     switcher_widget->height = 1;
 
+    switcher_widget->active_toplevel_widget = NULL;
+
     switcher->switcher_widget = switcher_widget;
 }
 
@@ -135,16 +137,26 @@ void sw_switcher_widget_update_size(
     update_toplevel_widgets_positions(switcher_widget);
 }
 
-void sw_switcher_widget_on_add_toplevel(struct sw_switcher_widget *switcher_widget) {
+void sw_switcher_widget_on_add_toplevel(
+    struct sw_switcher_widget *switcher_widget,
+    struct sw_toplevel_widget *toplevel_widget
+) {
     update_toplevel_widgets_sizes(switcher_widget);
     update_toplevel_widgets_positions(switcher_widget);
 
     if (switcher_widget->window) sw_switcher_widget_redraw(switcher_widget);
 }
 
-void sw_switcher_widget_on_remove_toplevel(struct sw_switcher_widget *switcher_widget) {
+void sw_switcher_widget_on_remove_toplevel(
+    struct sw_switcher_widget *switcher_widget,
+    struct sw_toplevel_widget *toplevel_widget
+) {
     update_toplevel_widgets_sizes(switcher_widget);
     update_toplevel_widgets_positions(switcher_widget);
+
+    if (switcher_widget->active_toplevel_widget == toplevel_widget) {
+        switcher_widget->active_toplevel_widget = NULL;
+    }
 
     if (switcher_widget->window) sw_switcher_widget_redraw(switcher_widget);
 }
@@ -166,8 +178,8 @@ void sw_switcher_widget_draw(
         struct sw_toplevel* toplevel = switcher_widget->model->primary_toplevels[i];
         if (toplevel == NULL) continue;
 
-        struct sw_toplevel_widget *widget = toplevel->toplevel_widget;
-        sw_toplevel_widget_draw(widget, cr);
+        struct sw_toplevel_widget *toplevel_widget = toplevel->toplevel_widget;
+        sw_toplevel_widget_draw(toplevel_widget, switcher_widget, cr);
     }
 }
 
@@ -175,6 +187,14 @@ void sw_switcher_widget_redraw(
     struct sw_switcher_widget *switcher_widget
 ) {
     gtk_widget_queue_draw(switcher_widget->window);
+}
+
+void sw_switcher_widget_mark_toplevel_activated(
+    struct sw_switcher_widget *switcher_widget,
+    struct sw_toplevel_widget *toplevel_widget
+) {
+    switcher_widget->active_toplevel_widget = toplevel_widget;
+    sw_switcher_widget_redraw(switcher_widget);
 }
 
 void sw_switcher_widget_destroy(struct sw_switcher_widget *switcher_widget) {

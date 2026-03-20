@@ -103,6 +103,10 @@ static void xdg_toplevel_on_destroy(struct wl_listener *listener, void *data) {
 	struct g_toplevel *toplevel = wl_container_of(listener, toplevel, destroy);
 	struct g_server *server = toplevel->server;
 
+	if (server->current_toplevel == toplevel) {
+		server->current_toplevel = NULL;
+	}
+
 	wl_list_remove(&toplevel->map.link);
 	wl_list_remove(&toplevel->unmap.link);
 	wl_list_remove(&toplevel->commit.link);
@@ -243,24 +247,29 @@ void g_toplevel_focus(struct g_toplevel *toplevel) {
 
 	struct g_server *server = toplevel->server;
 	struct wlr_seat *seat = server->seat;
-	struct wlr_surface *prev_surface = seat->keyboard_state.focused_surface;
-	struct wlr_surface *surface = toplevel->xdg_toplevel->base->surface;
 
-	if (prev_surface == surface) return;
+	struct g_toplevel *prev_toplevel = server->current_toplevel;
 
-	if (prev_surface) {
-		struct wlr_xdg_toplevel *prev_toplevel = wlr_xdg_toplevel_try_from_wlr_surface(prev_surface);
-		if (prev_toplevel != NULL) {
-			struct wlr_scene_tree *scene_tree = prev_toplevel->base->data;
-			struct g_toplevel *toplevel = scene_tree->node.data;
+	struct wlr_surface *current_toplevel_surface = toplevel->xdg_toplevel->base->surface;
+	struct wlr_keyboard *keyboard = wlr_seat_get_keyboard(seat);
 
-			wlr_xdg_toplevel_set_activated(prev_toplevel, false);
-			g_toplevel_handle_notify_activated(toplevel->handle, false);
-			toplevel->focused = false;
-		}
+	if (keyboard != NULL) {
+		wlr_seat_keyboard_notify_enter(
+			seat, 
+			current_toplevel_surface,
+			keyboard->keycodes, 
+			keyboard->num_keycodes, 
+			&keyboard->modifiers
+		);
 	}
 
-	struct wlr_keyboard *keyboard = wlr_seat_get_keyboard(seat);
+	if (prev_toplevel == toplevel) return;
+
+	if (prev_toplevel) {
+		wlr_xdg_toplevel_set_activated(prev_toplevel->xdg_toplevel, false);
+		g_toplevel_handle_notify_activated(prev_toplevel->handle, false);
+		prev_toplevel->focused = false;
+	}
 
 	wlr_scene_node_raise_to_top(&toplevel->scene_tree->node);
 	wl_list_remove(&toplevel->link);
@@ -272,8 +281,5 @@ void g_toplevel_focus(struct g_toplevel *toplevel) {
 
 	toplevel->focused = true;
 
-	if (keyboard != NULL) {
-		wlr_seat_keyboard_notify_enter(seat, surface,
-			keyboard->keycodes, keyboard->num_keycodes, &keyboard->modifiers);
-	}
+	server->current_toplevel = toplevel;
 }

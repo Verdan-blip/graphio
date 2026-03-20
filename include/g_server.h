@@ -5,6 +5,7 @@
 
 #include "include/g_layer_surface.h"
 #include "include/g_navigator.h"
+#include "include/g_toplevel.h"
 #include "include/ui/window_switcher/g_switcher.h"
 
 struct g_layer_surface;
@@ -33,7 +34,9 @@ struct g_server {
 	struct wlr_xdg_shell *xdg_shell;
 	struct wl_listener new_xdg_toplevel;
 	struct wl_listener new_xdg_popup;
+
 	struct wl_list toplevels;
+	struct g_toplevel *current_toplevel;
 
 	struct wlr_layer_shell_v1 *layer_shell;
 	struct wl_list layer_surfaces;

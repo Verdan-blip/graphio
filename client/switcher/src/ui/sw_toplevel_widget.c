@@ -7,27 +7,55 @@
 #include <string.h>
 
 #include "include/ui/sw_toplevel_widget.h"
+#include "include/ui/sw_switcher_widget.h"
 #include "include/sw_toplevel.h"
 #include "include/sw_switcher.h"
 
 static const int LOAD_ICON_SIZE = 64;
 
-static GdkPixbuf* load_best_icon(const char* app_id, int size) {
+static void sw_toplevel_widget_load_default_icon(struct sw_toplevel_widget *toplevel_widget) {
     GtkIconTheme *theme = gtk_icon_theme_get_default();
-    if (!app_id) return gtk_icon_theme_load_icon(theme, "application-x-executable", size, 0, NULL);
 
-    char *id_copy = strdup(app_id);
-    char *current = id_copy;
+    toplevel_widget->pixbuff = gtk_icon_theme_load_icon(
+        theme, 
+        "application-x-executable", 
+        LOAD_ICON_SIZE, 
+        0, 
+        NULL
+    );
+}
+
+void sw_toplevel_widget_load_icon(struct sw_toplevel_widget *toplevel_widget) {
+    GtkIconTheme *theme = gtk_icon_theme_get_default();
+    const char *app_id = toplevel_widget->model->app_id;
+
+    if (!app_id || strlen(app_id) == 0) {
+        sw_toplevel_widget_load_default_icon(toplevel_widget);
+        return;
+    }
+
     GdkPixbuf *pb = NULL;
 
-    while (current) {
-        pb = gtk_icon_theme_load_icon(theme, current, size, GTK_ICON_LOOKUP_FORCE_SIZE, NULL);
-        if (pb) break;
-        current = strchr(current, '.');
-        if (current) current++;
+    pb = gtk_icon_theme_load_icon(theme, app_id, LOAD_ICON_SIZE, 0, NULL);
+
+    if (!pb) {
+        char *lower_id = g_utf8_strdown(app_id, -1);
+        pb = gtk_icon_theme_load_icon(theme, lower_id, LOAD_ICON_SIZE, 0, NULL);
+        
+        if (!pb) {
+            char *last_dot = strrchr(lower_id, '.');
+            if (last_dot) {
+                pb = gtk_icon_theme_load_icon(theme, last_dot + 1, LOAD_ICON_SIZE, 0, NULL);
+            }
+        }
+        g_free(lower_id);
     }
-    free(id_copy);
-    return pb ? pb : gtk_icon_theme_load_icon(theme, "application-x-executable", size, 0, NULL);
+
+    if (pb) {
+        toplevel_widget->pixbuff = pb;
+    } else {
+        sw_toplevel_widget_load_default_icon(toplevel_widget);
+    }
 }
 
 void sw_toplevel_widget_init(struct sw_toplevel *model) {
@@ -36,7 +64,8 @@ void sw_toplevel_widget_init(struct sw_toplevel *model) {
     toplevel_widget->model = model;
     toplevel_widget->switcher_widget = model->switcher->switcher_widget;
     toplevel_widget->opacity = 1.0;
-    toplevel_widget->pixbuff = load_best_icon(model->app_id, LOAD_ICON_SIZE);
+
+    sw_toplevel_widget_load_icon(toplevel_widget);
 
     model->toplevel_widget = toplevel_widget;
 }
@@ -75,7 +104,8 @@ static void draw_rounded_rect_path(
 }
 
 void sw_toplevel_widget_draw(
-    struct sw_toplevel_widget *toplevel_widget, 
+    struct sw_toplevel_widget *toplevel_widget,
+    struct sw_switcher_widget *switcher_widget, 
     cairo_t *cr
 ) {
     int real_icon_width = gdk_pixbuf_get_width(toplevel_widget->pixbuff);
@@ -102,7 +132,7 @@ void sw_toplevel_widget_draw(
         toplevel_widget->selection_corner_radius
     );
 
-    if (toplevel_widget->model->activated) {
+    if (toplevel_widget == switcher_widget->active_toplevel_widget) {
         cairo_set_source_rgba(
             cr, 
             173 / 255.0f, 
@@ -122,6 +152,40 @@ void sw_toplevel_widget_draw(
     
     cairo_set_line_width(cr, 2.0);
     cairo_stroke(cr);
+}
+
+void sw_toplevel_widget_draw_placeholder(
+    int x, int y, 
+    int w, int h,
+    int corner_radius,
+    cairo_t *cr
+) {
+    double dashes[] = { 10.0, 10.0 }; 
+    int num_dashes = 2;
+    double offset = 0;
+
+    cairo_set_dash(cr, dashes, num_dashes, offset);
+    cairo_set_line_width(cr, 2.0);
+
+    cairo_set_source_rgba(
+        cr, 
+        173 / 255.0f, 
+        173 / 255.0f, 
+        255 / 255.0f, 
+        25 / 255.0f
+    );
+
+    draw_rounded_rect_path(
+        cr,
+        x, 
+        y, 
+        w, 
+        h, 
+        corner_radius
+    );
+
+    cairo_stroke(cr);
+    cairo_set_dash(cr, NULL, 0, 0);
 }
 
 void sw_toplevel_widget_destroy(struct sw_toplevel_widget *tw) {
