@@ -65,7 +65,10 @@ static gboolean on_key_press_in_primary_zone(
             if (top_toplevel == NULL) return false;
 
             struct sw_toplevel_widget *selected_toplevel_widget = switcher_widget->selected_toplevel_widget;
-            if (selected_toplevel_widget == NULL) handle_primary_toplevel_activation(switcher_widget, INDEX_TOP);
+            
+            if (selected_toplevel_widget == NULL) {
+                return handle_primary_toplevel_activation(switcher_widget, INDEX_TOP);
+            }
 
             struct sw_toplevel *selected = switcher_widget->selected_toplevel_widget->model;
 
@@ -167,6 +170,7 @@ gboolean on_key_release(GtkWidget *widget, GdkEventKey *event, gpointer data) {
         sw_switcher_set_activated(switcher, selected->model);
 
         sw_switcher_widget_enter_primary_zone(switcher_widget);
+        sw_switcher_widget_mark_toplevel_selected(switcher_widget, NULL);
         return true;
     }
 

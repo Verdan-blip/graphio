@@ -94,7 +94,6 @@ void sw_handle_state(
     wl_array_for_each(state, states) {
         if (*state == ZWLR_FOREIGN_TOPLEVEL_HANDLE_V1_STATE_ACTIVATED) {
             sw_switcher_notify_toplevel_activated(switcher, toplevel);
-            sw_switcher_widget_mark_toplevel_selected(switcher->switcher_widget, toplevel->toplevel_widget);
             break;
         }
     }

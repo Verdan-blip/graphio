@@ -183,6 +183,14 @@ void sw_toplevel_widget_draw(
             173 / 255.0f, 
             173 / 255.0f, 
             255 / 255.0f, 
+            255 / 255.0f
+        );
+    } else if (toplevel_widget == switcher_widget->model->current_toplevel->toplevel_widget) {
+        cairo_set_source_rgba(
+            cr, 
+            173 / 255.0f, 
+            173 / 255.0f, 
+            255 / 255.0f, 
             128 / 255.0f
         );
     } else {
@@ -209,15 +217,43 @@ void sw_toplevel_widget_draw_placeholder(
     int num_dashes = 2;
     double offset = 0;
 
-    cairo_set_dash(cr, dashes, num_dashes, offset);
-    cairo_set_line_width(cr, 2.0);
-
     cairo_set_source_rgba(
         cr, 
         173 / 255.0f, 
         173 / 255.0f, 
         255 / 255.0f, 
-        25 / 255.0f
+        128 / 255.0f
+    );
+
+    cairo_set_dash(cr, dashes, num_dashes, offset);
+
+    draw_rounded_rect_path(
+        cr,
+        x, 
+        y, 
+        w, 
+        h, 
+        corner_radius
+    );
+
+    cairo_set_line_width(cr, 2.0);
+    cairo_stroke(cr);
+
+    cairo_set_dash(cr, NULL, 0, 0);
+}
+
+void sw_toplevel_widget_draw_selection(
+    int x, int y, 
+    int w, int h,
+    int corner_radius,
+    cairo_t *cr
+) {
+    cairo_set_source_rgba(
+        cr, 
+        173 / 255.0f, 
+        173 / 255.0f, 
+        255 / 255.0f, 
+        255 / 255.0f
     );
 
     draw_rounded_rect_path(
@@ -229,8 +265,8 @@ void sw_toplevel_widget_draw_placeholder(
         corner_radius
     );
 
+    cairo_set_line_width(cr, 2.0);
     cairo_stroke(cr);
-    cairo_set_dash(cr, NULL, 0, 0);
 }
 
 void sw_toplevel_widget_destroy(struct sw_toplevel_widget *tw) {

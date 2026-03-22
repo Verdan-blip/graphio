@@ -286,6 +286,75 @@ void sw_switcher_widget_on_update_toplevel(struct sw_switcher_widget *switcher_w
     if (switcher_widget->window) sw_switcher_widget_redraw(switcher_widget);
 }
 
+static void sw_switcher_draw_placeholder_by_index(
+    struct sw_switcher_widget *switcher_widget,
+    int index,
+    cairo_t *cr
+) {
+    int x = 0, y = 0;
+
+    switch (index) {
+        case INDEX_TOP: {
+            x = switcher_widget->primary_square_horizontal_padding + 
+                    switcher_widget->inner_paddings +
+                    switcher_widget->toplevel_primary_area_width +
+                    switcher_widget->paddings_between_toplevels;
+
+            y = switcher_widget->slot_rect_height +
+                    switcher_widget->padding_between_containers +
+                    switcher_widget->inner_paddings;
+            break;
+        }
+
+        case INDEX_BOTTOM: {
+            x = switcher_widget->primary_square_horizontal_padding + 
+                    switcher_widget->inner_paddings +
+                    switcher_widget->toplevel_primary_area_width +
+                    switcher_widget->paddings_between_toplevels;
+
+            y = switcher_widget->height -
+                    switcher_widget->toplevel_primary_area_height -
+                    switcher_widget->inner_paddings;
+            break;
+        }
+
+         case INDEX_LEFT: {
+            x = switcher_widget->primary_square_horizontal_padding +
+                    switcher_widget->inner_paddings;
+
+            y = switcher_widget->height -
+                    switcher_widget->toplevel_primary_area_height -
+                    switcher_widget->inner_paddings -
+                    switcher_widget->toplevel_primary_area_height -
+                    switcher_widget->paddings_between_toplevels;
+            break;
+         }
+
+         case INDEX_RIGHT: {
+            x = switcher_widget->width -
+                    switcher_widget->primary_square_horizontal_padding -
+                    switcher_widget->inner_paddings -
+                    switcher_widget->toplevel_primary_area_width;
+
+            y = switcher_widget->height -
+                    switcher_widget->toplevel_primary_area_height -
+                    switcher_widget->inner_paddings -
+                    switcher_widget->toplevel_primary_area_height -
+                    switcher_widget->paddings_between_toplevels;
+            break;
+         }
+    }
+
+    sw_toplevel_widget_draw_placeholder(
+        x, 
+        y, 
+        switcher_widget->toplevel_primary_area_width, 
+        switcher_widget->toplevel_primary_area_height, 
+        switcher_widget->corner_radius, 
+        cr
+    );
+}
+
 void sw_switcher_widget_draw(
     struct sw_switcher_widget *switcher_widget,
     cairo_t *cr
@@ -312,10 +381,37 @@ void sw_switcher_widget_draw(
 
     for (int i = 0; i < PRIMATY_TOPLEVEL_COUNT; i++) {
         struct sw_toplevel* toplevel = switcher_widget->model->primary_toplevels[i];
-        if (toplevel == NULL) continue;
+
+        if (toplevel == NULL) {
+            sw_switcher_draw_placeholder_by_index(switcher_widget, i, cr);
+            continue;
+        }
 
         struct sw_toplevel_widget *toplevel_widget = toplevel->toplevel_widget;
         sw_toplevel_widget_draw(toplevel_widget, switcher_widget, cr);
+    }
+
+    if (switcher_widget->selected_toplevel_widget == NULL) {
+        int x = switcher_widget->primary_square_horizontal_padding + 
+                    switcher_widget->inner_paddings +
+                    switcher_widget->toplevel_primary_area_width +
+                    switcher_widget->paddings_between_toplevels;
+
+
+        int y = switcher_widget->slot_rect_height +
+                    switcher_widget->padding_between_containers +
+                    switcher_widget->inner_paddings +
+                    switcher_widget->toplevel_primary_area_height +
+                    switcher_widget->paddings_between_toplevels;
+        
+        sw_toplevel_widget_draw_selection(
+            x, 
+            y, 
+            switcher_widget->toplevel_primary_area_width, 
+            switcher_widget->toplevel_primary_area_height, 
+            switcher_widget->corner_radius, 
+            cr
+        );
     }
 
     struct sw_toplevel *toplevel;

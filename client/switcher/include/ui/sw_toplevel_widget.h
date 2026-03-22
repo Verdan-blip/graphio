@@ -45,7 +45,21 @@ void sw_toplevel_widget_draw(
     cairo_t *cr
 );
 
-void sw_toplevel_widget_draw_placeholder(int x, int y, int w, int h, int corner_radius, cairo_t *cr);
+void sw_toplevel_widget_draw_placeholder(
+    int x, 
+    int y, 
+    int w, 
+    int h, 
+    int corner_radius, 
+    cairo_t *cr
+);
+
+void sw_toplevel_widget_draw_selection(
+    int x, int y, 
+    int w, int h,
+    int corner_radius,
+    cairo_t *cr
+);
 
 void sw_toplevel_widget_destroy(struct sw_toplevel_widget *toplevel_widget);
 

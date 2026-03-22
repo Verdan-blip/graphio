@@ -3,10 +3,15 @@
 
 #include "cairo.h"
 #include "gtk/gtk.h"
+#include "include/sw_switcher.h"
 #include <stdbool.h>
 
 struct sw_switcher;
 struct sw_toplevel_widget;
+
+struct pos {
+    int x, y;
+};
 
 enum sw_switcher_widget_current_zone {
     SW_SWITCHER_PRIMARY_ZONE,
