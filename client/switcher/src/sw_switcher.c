@@ -11,6 +11,10 @@
 struct sw_switcher* sw_switcher_create() {
     struct sw_switcher *switcher = malloc(sizeof(struct sw_switcher));
     wl_list_init(&switcher->toplevels);
+
+    for (int i = 0; i < PRIMATY_TOPLEVEL_COUNT; i++) {
+        switcher->primary_toplevels[i] = NULL;
+    }
     
     return switcher;
 }
@@ -40,10 +44,29 @@ void sw_switcher_remove_toplevel(
         }
     }
 
+    if (switcher->current_toplevel == toplevel) {
+        switcher->current_toplevel = NULL;
+    }
+
     wl_list_remove(&toplevel->link);
 }
 
 void sw_switcher_set_activated(
+    struct sw_switcher *switcher, 
+    struct sw_toplevel *toplevel
+) {
+    sw_toplevel_activate(toplevel);
+}
+
+void sw_switcher_set_primary_activated(struct sw_switcher *switcher, int index) {
+    struct sw_toplevel *toplevel = switcher->primary_toplevels[index];
+
+    if (toplevel == NULL) return;
+
+    sw_switcher_set_activated(switcher, toplevel);
+}
+
+void sw_switcher_notify_toplevel_activated(
     struct sw_switcher *switcher, 
     struct sw_toplevel *toplevel
 ) {
@@ -65,16 +88,9 @@ void sw_switcher_set_activated(
         slot_toplevel->activated = false;
     }
 
-    sw_toplevel_activate(toplevel);
+    switcher->current_toplevel = toplevel;
+
     sw_switcher_widget_redraw(switcher->switcher_widget);
-}
-
-void sw_switcher_set_primary_activated(struct sw_switcher *switcher, int index) {
-    struct sw_toplevel *toplevel = switcher->primary_toplevels[index];
-
-    if (toplevel == NULL) return;
-
-    sw_switcher_set_activated(switcher, toplevel);
 }
 
 void sw_switcher_destroy(struct sw_switcher *switcher) {

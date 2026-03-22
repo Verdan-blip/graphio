@@ -1,3 +1,4 @@
+#include <stdbool.h>
 #define _POSIX_C_SOURCE 200809L
 
 #include "glib.h"
@@ -58,19 +59,42 @@ void sw_toplevel_widget_load_icon(struct sw_toplevel_widget *toplevel_widget) {
     }
 }
 
-void sw_toplevel_widget_init(struct sw_toplevel *model) {
+void sw_toplevel_widget_init(struct sw_toplevel *toplevel) {
     struct sw_toplevel_widget *toplevel_widget = malloc(sizeof(struct sw_toplevel_widget));
     
-    toplevel_widget->model = model;
-    toplevel_widget->switcher_widget = model->switcher->switcher_widget;
+    toplevel_widget->model = toplevel;
+    toplevel_widget->switcher_widget = toplevel->switcher->switcher_widget;
     toplevel_widget->opacity = 1.0;
 
     sw_toplevel_widget_load_icon(toplevel_widget);
 
-    model->toplevel_widget = toplevel_widget;
+    toplevel->toplevel_widget = toplevel_widget;
 }
 
-void sw_toplevel_widget_update_size(struct sw_toplevel_widget *toplevel_widget, int width, int height) {
+void sw_toplevel_widget_primary_update_size(
+    struct sw_toplevel_widget *toplevel_widget, 
+    int width, int height
+) {
+    toplevel_widget->selection_width = width;
+    toplevel_widget->selection_height = height;
+
+    toplevel_widget->width = width;
+    toplevel_widget->height = height;
+
+    toplevel_widget->selection_inner_padding = 12;
+    toplevel_widget->selection_corner_radius = 24;
+
+    toplevel_widget->icon_width = toplevel_widget->selection_width
+                - toplevel_widget->selection_inner_padding * 2;
+
+    toplevel_widget->icon_height = toplevel_widget->selection_height
+                - toplevel_widget->selection_inner_padding * 2;
+}
+
+void sw_toplevel_widget_slot_update_size(
+    struct sw_toplevel_widget *toplevel_widget, 
+    int width, int height
+) {
     toplevel_widget->selection_width = width;
     toplevel_widget->selection_height = height;
 
@@ -114,14 +138,35 @@ void sw_toplevel_widget_draw(
     int icon_padding_x = (toplevel_widget->selection_width - real_icon_width) / 2;
     int icon_padding_y = (toplevel_widget->selection_height - real_icon_height) / 2;
 
+    double scale_x = toplevel_widget->icon_width * 1.0 / real_icon_width;
+    double scale_y = toplevel_widget->icon_height * 1.0 / real_icon_height;
+
+    double scale_offset_x = (real_icon_width - toplevel_widget->icon_width) / 2.0;
+    double scale_offset_y = (real_icon_height - toplevel_widget->icon_height) / 2.0;
+
+    cairo_save(cr);
+
+    cairo_translate(
+        cr, 
+        toplevel_widget->x + icon_padding_x + scale_offset_x, 
+        toplevel_widget->y + icon_padding_y + scale_offset_y
+    );
+
+    cairo_scale(cr, scale_x, scale_y);
+
     gdk_cairo_set_source_pixbuf(
         cr, 
         toplevel_widget->pixbuff, 
-        toplevel_widget->x + icon_padding_x, 
-        toplevel_widget->y + icon_padding_y
+        0,
+        0
     );
 
     cairo_paint_with_alpha(cr, toplevel_widget->opacity);
+
+    cairo_pattern_set_filter(cairo_get_source(cr), CAIRO_FILTER_BILINEAR);
+
+    cairo_paint(cr);
+    cairo_restore(cr);
 
     draw_rounded_rect_path(
         cr,
@@ -132,7 +177,7 @@ void sw_toplevel_widget_draw(
         toplevel_widget->selection_corner_radius
     );
 
-    if (toplevel_widget == switcher_widget->active_toplevel_widget) {
+    if (toplevel_widget == switcher_widget->selected_toplevel_widget) {
         cairo_set_source_rgba(
             cr, 
             173 / 255.0f, 

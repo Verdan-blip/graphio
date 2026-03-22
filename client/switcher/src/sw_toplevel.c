@@ -93,7 +93,8 @@ void sw_handle_state(
     uint32_t *state;
     wl_array_for_each(state, states) {
         if (*state == ZWLR_FOREIGN_TOPLEVEL_HANDLE_V1_STATE_ACTIVATED) {
-            sw_switcher_set_activated(switcher, toplevel);
+            sw_switcher_notify_toplevel_activated(switcher, toplevel);
+            sw_switcher_widget_mark_toplevel_selected(switcher->switcher_widget, toplevel->toplevel_widget);
             break;
         }
     }
@@ -113,6 +114,8 @@ void sw_handle_closed(
     struct sw_toplevel *toplevel = data;
     struct sw_switcher *switcher = toplevel->switcher;
 
+    sw_switcher_remove_toplevel(switcher, toplevel);
+
     sw_switcher_widget_on_remove_toplevel(
         toplevel->switcher->switcher_widget,
         toplevel->toplevel_widget
@@ -122,8 +125,6 @@ void sw_handle_closed(
 
     if (toplevel->app_id) free(toplevel->app_id);
     if (toplevel->title) free(toplevel->title);
-
-    sw_switcher_remove_toplevel(switcher, toplevel);
 
     zwlr_foreign_toplevel_handle_v1_destroy(toplevel->handle);
     free(toplevel);

@@ -482,7 +482,7 @@ static void server_new_wlr_layer_surface(struct wl_listener *listener, void *dat
 	struct g_server *server = wl_container_of(listener, server, new_layer);
     struct wlr_layer_surface_v1 *wlr_layer_surface = data;
 
-	g_init_layer_surface(server, wlr_layer_surface);
+	g_layer_surface_init(server, wlr_layer_surface);
 }
 
 int main(int argc, char *argv[]) {

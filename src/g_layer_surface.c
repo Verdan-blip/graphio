@@ -23,7 +23,6 @@ static void g_layer_surface_on_unmap(struct wl_listener *listener, void *data) {
 
 static void g_layer_surface_on_client_commit(struct wl_listener *listener, void *data) {
     struct g_layer_surface *layer_surface = wl_container_of(listener, layer_surface, client_commit);
-
 }
 
 static bool g_layer_surface_is_anchored_horizontally(int anchor) {
@@ -144,7 +143,7 @@ static void g_layer_surface_on_commit(struct wl_listener *listener, void *data) 
 
 static void g_layer_surface_on_destroy(struct wl_listener *listener, void *data) {
     struct g_layer_surface *layer_surface = wl_container_of(listener, layer_surface, destroy);
-    enum zwlr_layer_shell_v1_layer layer = layer_surface->wlr_layer_surface->current.layer;
+    enum zwlr_layer_shell_v1_layer layer = layer_surface->layer;
 
     struct g_server *server = layer_surface->server;
 
@@ -162,11 +161,12 @@ static void g_layer_surface_on_destroy(struct wl_listener *listener, void *data)
     free(layer_surface);
 }
 
-void g_init_layer_surface(struct g_server *server, struct wlr_layer_surface_v1 *wlr_layer_surface) {
+void g_layer_surface_init(struct g_server *server, struct wlr_layer_surface_v1 *wlr_layer_surface) {
     struct g_layer_surface *layer_surface = malloc(sizeof(struct g_layer_surface));
 
     layer_surface->server = server;
     layer_surface->wlr_layer_surface = wlr_layer_surface;
+    layer_surface->layer = wlr_layer_surface->current.layer;
 
     enum zwlr_layer_shell_v1_layer layer = layer_surface->wlr_layer_surface->current.layer;
 
