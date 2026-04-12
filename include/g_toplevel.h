@@ -1,6 +1,7 @@
 #ifndef G_TOPLEVEL_H
 #define G_TOPLEVEL_H
 
+#include <stdint.h>
 #include <wlr/util/box.h>
 #include <wlr/types/wlr_foreign_toplevel_management_v1.h>
 #include <wlr/types/wlr_xdg_shell.h>
@@ -11,6 +12,9 @@ struct g_server;
 
 struct g_toplevel {
 	struct wl_list link;
+
+	// Generated parameter by Composer
+	uint32_t id;
 
 	bool maximized;
 	bool focused;

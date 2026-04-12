@@ -31,6 +31,7 @@ xkbcommon = dependency('xkbcommon')
 pixman = dependency('pixman-1')
 jansson = dependency('jansson')
 cairo = dependency('cairo')
+protoc_c_dep = dependency('libprotobuf-c')
 
 sources = [
   'src/main.c',
@@ -39,15 +40,18 @@ sources = [
   'src/g_launcher.c',
   'src/g_layer_surface.c',
   'src/utils/g_image.c',
-  'src/utils/g_image_utils.c'
+  'src/utils/g_image_utils.c',
+  'src/events/g-event-manager.c',
+  'include/generated/contract/protobuf/window_events.pb-c.c'
 ]
 
 protocols_inc = include_directories('protocols')
+gen_inc = include_directories('include/generated')
 
 executable(
   'graphio',
   sources,
-  include_directories: protocols_inc,
+  include_directories: [protocols_inc, gen_inc],
   dependencies: [
     wlroots,
     wayland_server,
@@ -55,6 +59,7 @@ executable(
     xkbcommon,
     pixman,
     jansson,
-    cairo
+    cairo,
+    protoc_c_dep
   ]
 )

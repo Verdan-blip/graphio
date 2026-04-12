@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+enum WindowEventType {
+  WINDOW_EVENT_TYPE_CREATE = 0;
+  WINDOW_EVENT_TYPE_DESTROY = 1;
+  WINDOW_EVENT_TYPE_FOCUS_IN = 2;
+  WINDOW_EVENT_TYPE_KEY_PRESS = 3;
+}
+
+message WindowEvent {
+  WindowEventType type = 1;
+  uint32 win_id = 2;
+  string app_id = 3;
+  double timestamp = 4;
+}
+
+message ScoringUpdate {
+  uint32 win_id = 1;
+  double new_score = 2;
+  bool move_to_primary = 3;
+}

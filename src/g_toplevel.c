@@ -1,33 +1,41 @@
 #define _POSIX_C_SOURCE 200809L
 
-#include <wayland-server-core.h>
-#include <wayland-util.h>
-
+#include <stdint.h>
 #include <string.h>
 #include <stdlib.h>
+
 #include <wlr/types/wlr_xdg_shell.h>
 #include <wlr/types/wlr_scene.h>
 #include <wlr/types/wlr_seat.h>
 #include <wlr/types/wlr_output_layout.h>
 #include <wlr/types/wlr_cursor.h>
 #include <wlr/types/wlr_xdg_shell.h>
+#include <wayland-server-core.h>
+#include <wayland-util.h>
 
 #include "include/g_toplevel.h"
 #include "include/g_server.h"
 #include "include/g_toplevel_handle.h"
+#include "include/events/g-event-manager.h"
+#include "include/generated/contract/protobuf/window_events.pb-c.h"
 
 struct g_toplevel *g_toplevel_at(
-		struct g_server *server, double lx, double ly,
-		struct wlr_surface **surface, double *sx, double *sy) {
-
+	struct g_server *server, double lx, double ly,
+	struct wlr_surface **surface, double *sx, double *sy
+) {
 	struct wlr_scene_node *node = wlr_scene_node_at(
-		&server->main_tree->node, lx, ly, sx, sy);
+		&server->main_tree->node, 
+		lx, ly, 
+		sx, sy
+	);
+
 	if (node == NULL || node->type != WLR_SCENE_NODE_BUFFER) {
 		return NULL;
 	}
+
 	struct wlr_scene_buffer *scene_buffer = wlr_scene_buffer_from_node(node);
-	struct wlr_scene_surface *scene_surface =
-		wlr_scene_surface_try_from_buffer(scene_buffer);
+	struct wlr_scene_surface *scene_surface = wlr_scene_surface_try_from_buffer(scene_buffer);
+	
 	if (!scene_surface) {
 		return NULL;
 	}
@@ -46,7 +54,11 @@ struct g_toplevel *g_toplevel_at(
 	return NULL;
 }
 
-static void begin_interactive(struct g_toplevel *toplevel, enum g_cursor_mode mode, uint32_t edges) {
+static void begin_interactive(
+	struct g_toplevel *toplevel, 
+	enum g_cursor_mode mode, 
+	uint32_t edges
+) {
 	struct g_server *server = toplevel->server;
 
 	server->grabbed_toplevel = toplevel;
@@ -62,6 +74,7 @@ static void begin_interactive(struct g_toplevel *toplevel, enum g_cursor_mode mo
 			((edges & WLR_EDGE_RIGHT) ? geo_box->width : 0);
 		double border_y = (toplevel->scene_tree->node.y + geo_box->y) +
 			((edges & WLR_EDGE_BOTTOM) ? geo_box->height : 0);
+
 		server->grab_x = server->cursor->x - border_x;
 		server->grab_y = server->cursor->y - border_y;
 
@@ -102,6 +115,13 @@ static void xdg_toplevel_commit(struct wl_listener *listener, void *data) {
 static void xdg_toplevel_on_destroy(struct wl_listener *listener, void *data) {
 	struct g_toplevel *toplevel = wl_container_of(listener, toplevel, destroy);
 	struct g_server *server = toplevel->server;
+
+	struct g_window_event event = {
+		.toplevel = toplevel,
+		.type = WINDOW_EVENT_TYPE__WINDOW_EVENT_TYPE_DESTROY
+	};
+
+	g_event_manager_send(server->event_manager, event);
 
 	if (server->current_toplevel == toplevel) {
 		server->current_toplevel = NULL;
@@ -202,6 +222,23 @@ static void xdg_toplevel_set_title(struct wl_listener *listener, void *data) {
 	g_toplevel_handle_notify_title_changed(toplevel->handle, title);
 }
 
+static uint32_t generate_toplevel_id() {
+	struct timespec ts;
+
+    if (clock_gettime(CLOCK_MONOTONIC, &ts) == -1) {
+        return (uint32_t)time(NULL);
+    }
+    
+    uint32_t hash = (uint32_t)(ts.tv_sec ^ ts.tv_nsec);
+    uint32_t fnv_prime = 16777619;
+    uint32_t fnv_offset = 2166136261U;
+    
+    uint32_t final_hash = (fnv_offset ^ (uint32_t)ts.tv_sec) * fnv_prime;
+    final_hash = (final_hash ^ (uint32_t)ts.tv_nsec) * fnv_prime;
+    
+    return final_hash;
+}
+
 void g_toplevel_init(struct g_server *server, struct wlr_xdg_toplevel *xdg_toplevel) {
 	struct g_toplevel *toplevel = calloc(1, sizeof(*toplevel));
 	toplevel->server = server;
@@ -240,6 +277,15 @@ void g_toplevel_init(struct g_server *server, struct wlr_xdg_toplevel *xdg_tople
 
 	toplevel->handle = handle;
 	handle->toplevel = toplevel;
+
+	toplevel->id = generate_toplevel_id();
+
+	struct g_window_event event = {
+		.toplevel = toplevel,
+		.type = WINDOW_EVENT_TYPE__WINDOW_EVENT_TYPE_CREATE
+	};
+
+	g_event_manager_send(server->event_manager, event);
 }
 
 void g_toplevel_focus(struct g_toplevel *toplevel) {
@@ -282,4 +328,11 @@ void g_toplevel_focus(struct g_toplevel *toplevel) {
 	toplevel->focused = true;
 
 	server->current_toplevel = toplevel;
+
+	struct g_window_event event = {
+		.toplevel = toplevel,
+		.type = WINDOW_EVENT_TYPE__WINDOW_EVENT_TYPE_FOCUS_IN
+	};
+
+	g_event_manager_send(server->event_manager, event);
 }
