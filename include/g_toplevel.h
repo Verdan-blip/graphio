@@ -15,6 +15,7 @@ struct g_toplevel {
 
 	// Generated parameter by Composer
 	uint32_t id;
+	char *app_id;
 
 	bool maximized;
 	bool focused;

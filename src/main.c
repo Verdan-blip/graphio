@@ -585,7 +585,7 @@ int main(int argc, char *argv[]) {
 
 	server.toplevel_manager = wlr_foreign_toplevel_manager_v1_create(server.wl_display);
 
-	server.event_manager = g_event_manager_create("/tmp/window_events.sock");
+	server.event_manager = g_event_manager_create(&server, "/tmp/window_events.sock");
 
 	/* Add a Unix socket to the Wayland display. */
 	const char *socket = wl_display_add_socket_auto(server.wl_display);

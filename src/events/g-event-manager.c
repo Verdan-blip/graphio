@@ -10,8 +10,10 @@
 #include <sys/stat.h>
 
 #include "wlr/util/log.h"
+#include <wayland-util.h>
 
 #include "include/events/g-event-manager.h"
+#include "include/g_server.h"
 
 static double get_now() {
     struct timespec ts;
@@ -21,16 +23,14 @@ static double get_now() {
 
 static int handle_client_connection(int fd, uint32_t mask, void *data) {
     struct g_event_manager *manager = data;
+    struct g_server *server = manager->server;
 
-    // Принимаем новое соединение
     int client_fd = accept(fd, NULL, NULL);
     if (client_fd < 0) {
         wlr_log(WLR_ERROR, "g-event-manager: failed to accept");
-        return 1; // Возвращаем 1, чтобы не удалять источник события из цикла
+        return 1;
     }
 
-    // КРИТИЧЕСКИЙ МОМЕНТ: если уже есть живой клиент, закрываем его
-    // Это позволяет новому процессу (или перезапущенному) занять место старого
     if (manager->client_fd >= 0) {
         wlr_log(WLR_INFO, "g-event-manager: dropping old client for a new one");
         close(manager->client_fd);
@@ -39,10 +39,33 @@ static int handle_client_connection(int fd, uint32_t mask, void *data) {
     manager->client_fd = client_fd;
     wlr_log(WLR_INFO, "g-event-manager: Python-client connected (fd: %d)", client_fd);
 
-    return 1; // Обязательно 1, чтобы продолжать слушать новые подключения!
+    // Send all window events
+    struct g_toplevel *toplevel;
+    wl_list_for_each(toplevel, &server->toplevels, link) {
+        struct g_window_event event = {
+			.toplevel = toplevel,
+			.type = WINDOW_EVENT_TYPE__WINDOW_EVENT_TYPE_CREATE
+		};
+
+		g_event_manager_send(toplevel->server->event_manager, event);
+
+        if (toplevel->focused) {
+            struct g_window_event event = {
+                .toplevel = toplevel,
+                .type = WINDOW_EVENT_TYPE__WINDOW_EVENT_TYPE_FOCUS_IN
+            };
+
+            g_event_manager_send(server->event_manager, event);
+        }
+    }
+
+    return 1;
 }
 
-struct g_event_manager *g_event_manager_create(const char *socket_path) {
+struct g_event_manager *g_event_manager_create(
+    struct g_server *server, 
+    const char *socket_path
+) {
     if (socket_path == NULL) return NULL;
 
     struct g_event_manager *manager = calloc(1, sizeof(struct g_event_manager));
@@ -66,6 +89,8 @@ struct g_event_manager *g_event_manager_create(const char *socket_path) {
 
     unlink(socket_path); 
 
+    manager->server = server;
+
     return manager;
 }
 
@@ -75,15 +100,12 @@ void g_event_manager_start_events(
 ) {
     if (!manager) return;
 
-    // 1. Создаем сокет ЗДЕСЬ, если он почему-то закрыт или не создан
     if (manager->server_fd < 0) {
         manager->server_fd = socket(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK | SOCK_CLOEXEC, 0);
     }
 
-    // 2. Убеждаемся, что путь чист
     unlink(manager->addr.sun_path);
 
-    // 3. Bind и Listen
     if (bind(manager->server_fd, (struct sockaddr *)&manager->addr, sizeof(manager->addr)) == -1) {
         wlr_log(WLR_ERROR, "g-event-manager: bind failed: %s", strerror(errno));
         return;
@@ -94,12 +116,10 @@ void g_event_manager_start_events(
         return;
     }
 
-    // ВАЖНО: Разрешаем Питону подключаться
     chmod(manager->addr.sun_path, 0666);
 
     struct wl_event_loop *loop = wl_display_get_event_loop(display);
 
-    // 4. Регистрация
     manager->server_source = wl_event_loop_add_fd(loop, 
         manager->server_fd, 
         WL_EVENT_READABLE, 
@@ -142,7 +162,7 @@ void g_event_manager_send(
     WindowEvent msg = WINDOW_EVENT__INIT;
     msg.type = event.type;
     msg.win_id = event.toplevel->id;
-    msg.app_id = (char *)(event.toplevel->xdg_toplevel->app_id ? event.toplevel->xdg_toplevel->app_id : "unknown");
+    msg.app_id = (char *)(event.toplevel->app_id);
     msg.timestamp = get_now();
 
     size_t len = window_event__get_packed_size(&msg);

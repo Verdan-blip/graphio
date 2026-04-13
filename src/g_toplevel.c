@@ -19,6 +19,8 @@
 #include "include/events/g-event-manager.h"
 #include "include/generated/contract/protobuf/window_events.pb-c.h"
 
+static char *DEFAULT_APP_ID = "unknown";
+
 struct g_toplevel *g_toplevel_at(
 	struct g_server *server, double lx, double ly,
 	struct wlr_surface **surface, double *sx, double *sy
@@ -139,6 +141,7 @@ static void xdg_toplevel_on_destroy(struct wl_listener *listener, void *data) {
 	wl_list_remove(&toplevel->set_title.link);
 
 	g_toplevel_handle_destroy(toplevel->handle);
+	if (toplevel->app_id) free(toplevel->app_id);
 
 	free(toplevel);
 }
@@ -207,9 +210,23 @@ static void xdg_toplevel_set_app_id(struct wl_listener *listener, void *data) {
 
 	struct wlr_xdg_toplevel *xdg_toplevel = toplevel->xdg_toplevel;
 
-	const char* app_id = xdg_toplevel->title == NULL ? "" : strdup(xdg_toplevel->app_id);
+	char* prev_app_id = toplevel->app_id;
 
-	g_toplevel_handle_notify_app_id_changed(toplevel->handle, app_id);
+	// Only when app_id set first time
+	if (prev_app_id == NULL) {
+		struct g_window_event event = {
+			.toplevel = toplevel,
+			.type = WINDOW_EVENT_TYPE__WINDOW_EVENT_TYPE_CREATE
+		};
+
+		g_event_manager_send(toplevel->server->event_manager, event);
+	} else {
+		free(prev_app_id);
+	}
+
+	toplevel->app_id = xdg_toplevel->app_id == NULL ? DEFAULT_APP_ID : strdup(xdg_toplevel->app_id);
+
+	g_toplevel_handle_notify_app_id_changed(toplevel->handle, toplevel->app_id);
 }
 
 static void xdg_toplevel_set_title(struct wl_listener *listener, void *data) {
@@ -279,13 +296,6 @@ void g_toplevel_init(struct g_server *server, struct wlr_xdg_toplevel *xdg_tople
 	handle->toplevel = toplevel;
 
 	toplevel->id = generate_toplevel_id();
-
-	struct g_window_event event = {
-		.toplevel = toplevel,
-		.type = WINDOW_EVENT_TYPE__WINDOW_EVENT_TYPE_CREATE
-	};
-
-	g_event_manager_send(server->event_manager, event);
 }
 
 void g_toplevel_focus(struct g_toplevel *toplevel) {
