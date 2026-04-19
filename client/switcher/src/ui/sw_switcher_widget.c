@@ -5,6 +5,7 @@
 
 #include "include/ui/sw_switcher_widget.h"
 #include "gtk/gtk.h"
+#include "include/sw_graph_model.h"
 #include "include/ui/sw_toplevel_widget.h"
 #include "include/sw_switcher.h"
 #include "include/sw_toplevel.h"
@@ -108,44 +109,57 @@ static void update_toplevel_widgets_positions(
                 switcher_widget->slot_rect_height + 
                 switcher_widget->padding_between_containers;
 
-    for (int i = 0; i < PRIMATY_TOPLEVEL_COUNT; i++) {
-        struct sw_toplevel *toplevel = switcher_widget->model->primary_toplevels[i];
-        if (toplevel == NULL) break;
+    struct sw_graph_model *graph = switcher_widget->model->graph_model;
 
+    struct sw_graph_node *north = graph->north_node;
+    struct sw_graph_node *south = graph->south_node;
+    struct sw_graph_node *west = graph->west_node;
+    struct sw_graph_node *east = graph->east_node;
+
+    if (west != NULL) {
+        struct sw_toplevel *toplevel = west->data;
         struct sw_toplevel_widget *w = toplevel->toplevel_widget;
 
-        if (i == INDEX_LEFT) {
-            w->x = switcher_widget->inner_paddings + switcher_widget->primary_square_horizontal_padding;
-            w->y = cy - w->height / 2;
-            continue;
-        }
-
-        if (i == INDEX_RIGHT) {
-            w->x = switcher_widget->width - switcher_widget->primary_square_horizontal_padding - switcher_widget->inner_paddings - w->width;
-            w->y = cy - w->height / 2;
-            continue;
-        }
-
-        if (i == INDEX_TOP) {
-            w->x = cx - w->width / 2;
-            w->y = switcher_widget->inner_paddings + 
-                        switcher_widget->slot_rect_height + 
-                        switcher_widget->padding_between_containers;
-            continue;
-        }
-
-        if (i == INDEX_BOTTOM) {
-            w->x = cx - w->width / 2;
-            w->y = switcher_widget->height - switcher_widget->inner_paddings - w->height;
-            continue;
-        }
+        w->x = switcher_widget->inner_paddings + switcher_widget->primary_square_horizontal_padding;
+        w->y = cy - w->height / 2;
     }
 
-    struct sw_toplevel *slot_toplevel;
-    int i = 0;
-    wl_list_for_each(slot_toplevel, &switcher_widget->model->toplevels, link) {
-        struct sw_toplevel_widget *w = slot_toplevel->toplevel_widget;
+    if (east != NULL) {
+        struct sw_toplevel *toplevel = east->data;
+        struct sw_toplevel_widget *w = toplevel->toplevel_widget;
 
+        w->x = switcher_widget->width - 
+                    switcher_widget->primary_square_horizontal_padding - 
+                    switcher_widget->inner_paddings - w->width;
+        w->y = cy - w->height / 2;
+    }
+
+    if (north != NULL) {
+        struct sw_toplevel *toplevel = north->data;
+        struct sw_toplevel_widget *w = toplevel->toplevel_widget;
+
+        w->x = cx - w->width / 2;
+        w->y = switcher_widget->inner_paddings + 
+                    switcher_widget->slot_rect_height + 
+                    switcher_widget->padding_between_containers;
+    }
+
+    if (south != NULL) {
+        struct sw_toplevel *toplevel = south->data;
+        struct sw_toplevel_widget *w = toplevel->toplevel_widget;
+
+        w->x = cx - w->width / 2;
+        w->y = switcher_widget->height - 
+                    switcher_widget->inner_paddings - 
+                    w->height;
+    }
+
+    struct sw_graph_node *node;
+    int i = 0;
+    sw_graph_model_for_each_slot(node, graph) {
+        struct sw_toplevel *slot_toplevel = node->data;
+
+        struct sw_toplevel_widget *w = slot_toplevel->toplevel_widget;
         w->x = 24 + i * (w->width + 32);
         w->y = 24;
         i++;
@@ -155,28 +169,25 @@ static void update_toplevel_widgets_positions(
 static void update_toplevel_widgets_sizes(
     struct sw_switcher_widget *switcher_widget
 ) {
-    for (int i = 0; i < PRIMATY_TOPLEVEL_COUNT; i++) {
-        struct sw_toplevel *toplevel = switcher_widget->model->primary_toplevels[i];
-
-        if (toplevel == NULL) continue;
-
-        struct sw_toplevel_widget *toplevel_widget = toplevel->toplevel_widget;
-        sw_toplevel_widget_primary_update_size(
-            toplevel_widget, 
-            switcher_widget->toplevel_primary_area_width, 
-            switcher_widget->toplevel_primary_area_height
-        );
-    }
-
-    struct sw_toplevel *toplevel;
-    wl_list_for_each(toplevel, &switcher_widget->model->toplevels, link) {
+    struct sw_graph_model *graph = switcher_widget->model->graph_model;
+    struct sw_graph_node *node;
+    sw_graph_model_for_each(node, graph) {
+        struct sw_toplevel *toplevel = node->data;
         struct sw_toplevel_widget *toplevel_widget = toplevel->toplevel_widget;
 
-        sw_toplevel_widget_slot_update_size(
+        if (sw_graph_model_node_is_primary(graph, node)) {
+            sw_toplevel_widget_primary_update_size(
+                toplevel_widget, 
+                switcher_widget->toplevel_primary_area_width, 
+                switcher_widget->toplevel_primary_area_height
+            );
+        } else {
+            sw_toplevel_widget_slot_update_size(
             toplevel_widget, 
             switcher_widget->toplevel_slot_area_width, 
             switcher_widget->toplevel_slot_area_height
-        );
+            );
+        }
     }
 }
 
@@ -247,7 +258,9 @@ void sw_switcher_widget_on_add_toplevel(
     struct sw_switcher_widget *switcher_widget,
     struct sw_toplevel_widget *toplevel
 ) {
-    if (wl_list_empty(&switcher_widget->model->toplevels)) {
+    struct sw_graph_model *graph = switcher_widget->model->graph_model;
+
+    if (sw_graph_model_slot_nodes_empty(graph)) {
         switcher_widget->is_slot_widget_visible = false;
     } else {
         switcher_widget->is_slot_widget_visible = true;
@@ -263,7 +276,9 @@ void sw_switcher_widget_on_remove_toplevel(
     struct sw_switcher_widget *switcher_widget,
     struct sw_toplevel_widget *toplevel_widget
 ) {
-    if (wl_list_empty(&switcher_widget->model->toplevels)) {
+    struct sw_graph_model *graph = switcher_widget->model->graph_model;
+
+    if (sw_graph_model_slot_nodes_empty(graph)) {
         switcher_widget->is_slot_widget_visible = false;
     } else {
         switcher_widget->is_slot_widget_visible = true;
@@ -379,14 +394,16 @@ void sw_switcher_widget_draw(
         switcher_widget->corner_radius
     );
 
-    for (int i = 0; i < PRIMATY_TOPLEVEL_COUNT; i++) {
-        struct sw_toplevel* toplevel = switcher_widget->model->primary_toplevels[i];
-
-        if (toplevel == NULL) {
-            sw_switcher_draw_placeholder_by_index(switcher_widget, i, cr);
+    struct sw_graph_model *graph = switcher_widget->model->graph_model;
+    struct sw_graph_node *node;
+    int index = 0;
+    sw_graph_model_for_each_primary_unsafe(node, index, graph) {
+        if (node == NULL) {
+            sw_switcher_draw_placeholder_by_index(switcher_widget, index, cr);
             continue;
         }
-
+        
+        struct sw_toplevel* toplevel = node->data;
         struct sw_toplevel_widget *toplevel_widget = toplevel->toplevel_widget;
         sw_toplevel_widget_draw(toplevel_widget, switcher_widget, cr);
     }
@@ -414,8 +431,9 @@ void sw_switcher_widget_draw(
         );
     }
 
-    struct sw_toplevel *toplevel;
-    wl_list_for_each(toplevel, &switcher_widget->model->toplevels, link) {
+    struct sw_graph_node *slot_node;
+    sw_graph_model_for_each_slot(slot_node, graph) {
+        struct sw_toplevel *toplevel = slot_node->data;
         sw_toplevel_widget_draw(toplevel->toplevel_widget, switcher_widget, cr);
     }
 }

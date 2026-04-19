@@ -39,6 +39,8 @@ sources = [
   'src/main.c',
   'src/sw_switcher.c',
   'src/sw_toplevel.c',
+  'src/sw_scorer.c',
+  'src/sw_graph_model.c',
   'src/ui/sw_toplevel_widget.c',
   'src/ui/sw_switcher_widget.c',
   '../../protocols/src/wlr-foreign-toplevel-management-unstable-v1-protocol.c'

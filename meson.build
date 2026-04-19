@@ -41,7 +41,6 @@ sources = [
   'src/g_layer_surface.c',
   'src/utils/g_image.c',
   'src/utils/g_image_utils.c',
-  'src/events/g-event-manager.c',
   'include/generated/contract/protobuf/window_events.pb-c.c'
 ]
 

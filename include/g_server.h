@@ -3,7 +3,6 @@
 
 #include <wlr/types/wlr_foreign_toplevel_management_v1.h>
 
-#include "include/events/g-event-manager.h"
 #include "include/g_layer_surface.h"
 #include "include/g_toplevel.h"
 
@@ -66,8 +65,6 @@ struct g_server {
 	struct wl_listener new_output;
 
 	struct wlr_foreign_toplevel_manager_v1 *toplevel_manager;
-
-	struct g_event_manager *event_manager;
 };
 
 struct g_output {

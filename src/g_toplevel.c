@@ -123,8 +123,6 @@ static void xdg_toplevel_on_destroy(struct wl_listener *listener, void *data) {
 		.type = WINDOW_EVENT_TYPE__WINDOW_EVENT_TYPE_DESTROY
 	};
 
-	g_event_manager_send(server->event_manager, event);
-
 	if (server->current_toplevel == toplevel) {
 		server->current_toplevel = NULL;
 	}
@@ -218,8 +216,6 @@ static void xdg_toplevel_set_app_id(struct wl_listener *listener, void *data) {
 			.toplevel = toplevel,
 			.type = WINDOW_EVENT_TYPE__WINDOW_EVENT_TYPE_CREATE
 		};
-
-		g_event_manager_send(toplevel->server->event_manager, event);
 	} else {
 		free(prev_app_id);
 	}
@@ -343,6 +339,4 @@ void g_toplevel_focus(struct g_toplevel *toplevel) {
 		.toplevel = toplevel,
 		.type = WINDOW_EVENT_TYPE__WINDOW_EVENT_TYPE_FOCUS_IN
 	};
-
-	g_event_manager_send(server->event_manager, event);
 }

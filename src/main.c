@@ -36,7 +36,6 @@
 #include "include/g_layer_surface.h"
 #include "include/g_server.h"
 #include "include/g_toplevel.h"
-#include "include/events/g-event-manager.h"
 #include "include/utils/g_image_utils.h"
 
 struct wlr_output* g_server_get_current_output(struct g_server *server) {
@@ -585,8 +584,6 @@ int main(int argc, char *argv[]) {
 
 	server.toplevel_manager = wlr_foreign_toplevel_manager_v1_create(server.wl_display);
 
-	server.event_manager = g_event_manager_create(&server, "/tmp/window_events.sock");
-
 	/* Add a Unix socket to the Wayland display. */
 	const char *socket = wl_display_add_socket_auto(server.wl_display);
 	if (!socket) {
@@ -603,15 +600,11 @@ int main(int argc, char *argv[]) {
 
 	setenv("WAYLAND_DISPLAY", socket, true);
 
-	g_event_manager_start_events(server.event_manager, server.wl_display);
-
 	// Launch weston-terminal as start application
 	g_launch("weston-terminal");
 
 	wlr_log(WLR_INFO, "Running Wayland compositor on WAYLAND_DISPLAY=%s", socket);
 	wl_display_run(server.wl_display);
-
-	g_event_manager_destroy(server.event_manager);
 
 	wl_display_destroy_clients(server.wl_display);
 

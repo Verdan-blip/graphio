@@ -1,3 +1,4 @@
+#include "include/sw_graph_model.h"
 #define _POSIX_C_SOURCE 200809L
 
 #include <wayland-client-protocol.h>
@@ -36,11 +37,9 @@ static gboolean on_area_size_allocate(GtkWidget *widget, GdkRectangle *allocatio
 
 static gboolean handle_primary_toplevel_activation(
     struct sw_switcher_widget *switcher_widget,
-    int index
+    struct sw_toplevel *primary_toplevel
 ) {
     struct sw_switcher *switcher = switcher_widget->model;
-    struct sw_toplevel **primary_toplevels = switcher->primary_toplevels;
-    struct sw_toplevel *primary_toplevel = primary_toplevels[index];
 
     if (primary_toplevel == NULL) return false;
 
@@ -57,46 +56,82 @@ static gboolean on_key_press_in_primary_zone(
     guint keyval
 ) {
     struct sw_switcher *switcher = switcher_widget->model;
-    struct sw_toplevel **primary_toplevels = switcher->primary_toplevels;
+    struct sw_graph_model *graph = switcher->graph_model;
 
     switch (keyval) {
         case GDK_KEY_Up: {
-            struct sw_toplevel *top_toplevel = primary_toplevels[INDEX_TOP];
-            if (top_toplevel == NULL) return false;
+            struct sw_graph_node *node = graph->north_node;
+
+            if (node == NULL) return false;
+
+            struct sw_toplevel *north_toplevel = node->data;
+            if (north_toplevel == NULL) return false;
 
             struct sw_toplevel_widget *selected_toplevel_widget = switcher_widget->selected_toplevel_widget;
-            
+
             if (selected_toplevel_widget == NULL) {
-                return handle_primary_toplevel_activation(switcher_widget, INDEX_TOP);
+                return handle_primary_toplevel_activation(
+                    switcher_widget, 
+                    north_toplevel
+                );
             }
 
             struct sw_toplevel *selected = switcher_widget->selected_toplevel_widget->model;
 
-            if (selected == top_toplevel) {
-                if (wl_list_empty(&switcher->toplevels)) return false;
+            if (selected == north_toplevel) {
+                if (sw_graph_model_slot_nodes_empty(graph)) return false;
 
-                struct sw_toplevel *first_slot = wl_container_of(switcher->toplevels.next, first_slot, link);
+                struct sw_graph_node *first_slot_node = sw_graph_model_get_first_slot(graph);
+                if (first_slot_node == NULL) return false;
 
-                if (first_slot == NULL) return false;
+                struct sw_toplevel *first_slot_toplevel = first_slot_node->data;
 
-                sw_switcher_widget_mark_toplevel_selected(switcher_widget, first_slot->toplevel_widget);
+                if (first_slot_toplevel == NULL) return false;
+
+                sw_switcher_widget_mark_toplevel_selected(
+                    switcher_widget, 
+                    first_slot_toplevel->toplevel_widget
+                );
+
                 sw_switcher_widget_enter_slot_zone(switcher_widget);
+
                 return false;
             }
 
-            return handle_primary_toplevel_activation(switcher_widget, INDEX_TOP);
+            return handle_primary_toplevel_activation(
+                switcher_widget, 
+                north_toplevel
+            );
         }
 
         case GDK_KEY_Down: {
-            return handle_primary_toplevel_activation(switcher_widget, INDEX_BOTTOM);
+            struct sw_graph_node *south_node = graph->south_node;
+            if (south_node == NULL) return false;
+
+            return handle_primary_toplevel_activation(
+                switcher_widget, 
+                south_node->data
+            );
         }
 
         case GDK_KEY_Right: {
-            return handle_primary_toplevel_activation(switcher_widget, INDEX_RIGHT);
+            struct sw_graph_node *east_node = graph->east_node;
+            if (east_node == NULL) return false;
+
+            return handle_primary_toplevel_activation(
+                switcher_widget, 
+                east_node->data
+            );
         }
 
         case GDK_KEY_Left: {
-            return handle_primary_toplevel_activation(switcher_widget, INDEX_LEFT);
+            struct sw_graph_node *west_node = graph->west_node;
+            if (west_node == NULL) return false;
+
+            return handle_primary_toplevel_activation(
+                switcher_widget, 
+                west_node->data
+            );
         }
     }
 
@@ -108,32 +143,45 @@ static gboolean on_key_press_in_slot_zone(
     guint keyval
 ) {
     struct sw_switcher *switcher = switcher_widget->model;
+    struct sw_graph_model *graph = switcher->graph_model;
 
     struct sw_toplevel *current = switcher_widget->selected_toplevel_widget->model;
 
     switch (keyval) {
         case GDK_KEY_Down: {
+            struct sw_toplevel *north_toplevel = graph->north_node->data;
             sw_switcher_widget_enter_primary_zone(switcher_widget);
-            handle_primary_toplevel_activation(switcher_widget, INDEX_TOP);
+            handle_primary_toplevel_activation(switcher_widget, north_toplevel);
             return true;
         }
 
         case GDK_KEY_Right: {
-            struct wl_list *current_link = &current->link;
+            struct sw_graph_node *current_node = current->node;
+            struct sw_graph_node *next_node = current_node->next;
 
-            if (current->link.next == &switcher->toplevels) return false;
+            if (next_node == NULL) return false;
 
-            struct sw_toplevel *next = wl_container_of(current->link.next, next, link);
-            sw_switcher_widget_mark_toplevel_selected(switcher_widget, next->toplevel_widget);
+            struct sw_toplevel *next_toplevel = next_node->data;
+
+            sw_switcher_widget_mark_toplevel_selected(
+                switcher_widget, 
+                next_toplevel->toplevel_widget
+            );
             return true;
         }
 
         case GDK_KEY_Left: {
-            struct wl_list *current_link = &current->link;
-            if (current->link.prev == &switcher->toplevels) return false;
+            struct sw_graph_node *current_node = current->node;
+            struct sw_graph_node *prev_node = current_node->prev;
 
-            struct sw_toplevel *prev = wl_container_of(current->link.prev, prev, link);
-            sw_switcher_widget_mark_toplevel_selected(switcher_widget, prev->toplevel_widget);
+            if (prev_node == NULL) return false;
+
+            struct sw_toplevel *prev_toplevel = prev_node->data;
+
+            sw_switcher_widget_mark_toplevel_selected(
+                switcher_widget, 
+                prev_toplevel->toplevel_widget
+            );
             return true;
         }
     }
@@ -144,8 +192,6 @@ static gboolean on_key_press_in_slot_zone(
 gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, gpointer data) {
     struct sw_switcher_widget *switcher_widget = data;
     struct sw_switcher *switcher = switcher_widget->model;
-
-    struct sw_toplevel **primary_toplevels = switcher->primary_toplevels;
 
     if (switcher_widget->current_zone == SW_SWITCHER_PRIMARY_ZONE) {
         return on_key_press_in_primary_zone(switcher_widget, event->keyval);

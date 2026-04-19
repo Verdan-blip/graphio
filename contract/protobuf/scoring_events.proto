@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+message WindowRank {
+    uint32 win_id = 1;
+    string app_id = 2;
+    double score = 3;
+}
+
+message RankingUpdate {
+    repeated WindowRank windows = 1;
+}

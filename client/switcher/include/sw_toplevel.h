@@ -7,12 +7,14 @@
 
 #include "../protocols/wlr-foreign-toplevel-management-unstable-v1-client-protocol.h"
 #include "gtk/gtk.h"
+#include "include/sw_graph_model.h"
 
 struct sw_switcher;
 struct sw_toplevel_widget;
 
 struct sw_toplevel {
     struct wl_list link;
+    struct sw_graph_node *node;
 
     struct sw_switcher *switcher;
 
@@ -20,6 +22,8 @@ struct sw_toplevel {
     char *title;
     char *app_id;
     bool activated;
+
+    long last_update;
 
     struct sw_toplevel_widget *toplevel_widget;
 };
