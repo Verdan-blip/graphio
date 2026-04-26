@@ -1,4 +1,5 @@
 #include <sched.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <wayland-client-protocol.h>
@@ -56,16 +57,35 @@ void sw_switcher_add_toplevel(
     node->data = toplevel;
     node->score = initial_score;
 
-    sw_graph_model_add(switcher->graph_model, node);
-
     toplevel->node = node;
+    toplevel->last_update = now;
+
+    bool topology_changed;
+    sw_graph_model_add(
+        switcher->graph_model, 
+        node, 
+        &topology_changed
+    );
+
+    if (topology_changed) {
+        sw_switcher_widget_notify_topology_changed(switcher->switcher_widget);
+    }
 }
 
 void sw_switcher_remove_toplevel(
     struct sw_switcher *switcher, 
     struct sw_toplevel *toplevel
 ) {
-    sw_graph_model_remove(switcher->graph_model, toplevel->node);
+    bool topology_changed;
+    sw_graph_model_remove(
+        switcher->graph_model, 
+        toplevel->node,
+        &topology_changed
+    );
+
+    if (topology_changed) {
+        sw_switcher_widget_notify_topology_changed(switcher->switcher_widget);
+    }
 }
 
 void sw_switcher_set_activated(
@@ -73,6 +93,30 @@ void sw_switcher_set_activated(
     struct sw_toplevel *toplevel
 ) {
     sw_toplevel_activate(toplevel);
+
+    long now = get_current_time_millis();
+
+    double new_score = sw_scorer_reward(
+        switcher->scorer, 
+        toplevel->node->score, 
+        SW_SCORER_EVENT_TYPE_FOCUS, 
+        now, 
+        toplevel->last_update
+    );
+
+    bool topology_changed;
+    sw_graph_model_update_node_score(
+        switcher->graph_model, 
+        toplevel->node, 
+        new_score,
+        &topology_changed
+    );
+
+    toplevel->last_update = now;
+
+    if (topology_changed) {
+        sw_switcher_widget_notify_topology_changed(switcher->switcher_widget);
+    }
 }
 
 void sw_switcher_notify_toplevel_activated(
@@ -93,8 +137,11 @@ void sw_switcher_notify_toplevel_activated(
     );
 
     struct sw_graph_node *node;
-    sw_graph_model_for_each(node, switcher->graph_model) {
-        struct sw_toplevel *it = (struct sw_toplevel *) node->data;
+    int index;
+    sw_graph_model_for_each(node, index, switcher->graph_model) {
+        if (node == NULL) continue;
+
+        struct sw_toplevel *it = node->data;
 
         if (it == toplevel) {
             it->activated = true;
@@ -108,13 +155,25 @@ void sw_switcher_notify_toplevel_activated(
             it->last_update, 
             now
         );
-        
-        sw_graph_model_update_node_score(switcher->graph_model, node, new_score);
+
+        bool topology_changed;
+        sw_graph_model_update_node_score(
+            switcher->graph_model, 
+            node, 
+            new_score, 
+            &topology_changed
+        );
+
+        if (topology_changed) {
+            sw_switcher_widget_notify_topology_changed(switcher->switcher_widget);
+        }
     }
 
     switcher->current_toplevel = toplevel;
 
-    sw_switcher_widget_redraw(switcher->switcher_widget);
+    sw_switcher_widget_notify_is_current_toplevel_change(
+        switcher->switcher_widget, toplevel->toplevel_widget
+    );
 }
 
 void sw_switcher_destroy(struct sw_switcher *switcher) {

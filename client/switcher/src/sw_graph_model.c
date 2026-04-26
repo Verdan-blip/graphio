@@ -1,11 +1,13 @@
+#include <stdbool.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 #include "include/sw_graph_model.h"
 
 struct sw_graph_model* sw_graph_model_create() {
     struct sw_graph_model *graph_model = malloc(sizeof(struct sw_graph_model));
-    graph_model->head = NULL;
-    graph_model->tail = NULL;
+    graph_model->slot_head = NULL;
+    graph_model->slot_tail = NULL;
     graph_model->size = 0;
 
     graph_model->north_node = NULL;
@@ -19,104 +21,162 @@ struct sw_graph_model* sw_graph_model_create() {
 void sw_graph_model_destroy(struct sw_graph_model *model) {
     if (!model) return;
 
-    struct sw_graph_node *curr = model->head;
-    struct sw_graph_node *next;
+    if (model->west_node)  free(model->west_node);
+    if (model->east_node)  free(model->east_node);
+    if (model->north_node) free(model->north_node);
+    if (model->south_node) free(model->south_node);
 
+    struct sw_graph_node *curr = model->slot_head;
     while (curr) {
-        next = curr->next;
+        struct sw_graph_node *next = curr->next;
         free(curr);
-        
         curr = next;
     }
 
     free(model);
 }
 
-static void refresh_zones(struct sw_graph_model *model) {
-    struct sw_graph_node *curr = model->head;
-
-    model->west_node = curr;
-    model->east_node = (curr) ? curr->next : NULL;
-    model->north_node = (curr && curr->next) ? curr->next->next : NULL;
-    model->south_node = (curr && curr->next && curr->next->next) ? curr->next->next->next : NULL;
-}
-
-static void swap_nodes(
-    struct sw_graph_model *model, 
-    struct sw_graph_node *a, 
-    struct sw_graph_node *b
-) {
-    struct sw_graph_node *prev_b = b->prev;
-    struct sw_graph_node *next_a = a->next;
-
-    if (prev_b) prev_b->next = a;
-    else model->head = a;
-
-    if (next_a) next_a->prev = b;
-    else model->tail = b;
-
-    a->prev = prev_b;
-    a->next = b;
-    b->prev = a;
-    b->next = next_a;
-}
-
 void sw_graph_model_update_node_score(
     struct sw_graph_model *model, 
-    struct sw_graph_node *node, 
-    double new_score
+    struct sw_graph_node *node,
+    double new_score,
+    bool *topology_changed
 ) {
-    node->score = new_score;
-
-    while (node->prev && node->score > node->prev->score) {
-        swap_nodes(model, node, node->prev);
-    }
-
-    while (node->next && node->score < node->next->score) {
-        swap_nodes(model, node->next, node);
-    }
-
-    refresh_zones(model);
-}
-
-void sw_graph_model_add(struct sw_graph_model *model, struct sw_graph_node *node) {
-    if (!model->head) {
-        model->head = node;
-        model->tail = node;
-        node->prev = NULL;
-        node->next = NULL;
-    } else {
-        node->prev = model->tail;
-        node->next = NULL;
-        model->tail->next = node;
-        model->tail = node;
-    }
-    model->size++;
-
-    sw_graph_model_update_node_score(model, node, node->score);
-}
-
-void sw_graph_model_remove(struct sw_graph_model *model, struct sw_graph_node *node) {
+    if (topology_changed) *topology_changed = false;
     if (!model || !node) return;
 
-    if (node->prev) {
-        node->prev->next = node->next;
-    } else {
-        model->head = node->next;
+    node->score = new_score;
+
+    if (sw_graph_model_node_is_primary(model, node)) {
+        return;
     }
 
-    if (node->next) {
-        node->next->prev = node->prev;
+    struct sw_graph_node **slots[4] = {
+        &model->west_node, &model->east_node, 
+        &model->north_node, &model->south_node
+    };
+
+    int weakest_idx = 0;
+    double min_score = (*slots[0])->score;
+
+    for (int i = 1; i < 4; i++) {
+        if (*slots[i] == NULL || (*slots[i])->score < min_score) {
+            weakest_idx = i;
+            min_score = (*slots[i]) ? (*slots[i])->score : -1.0;
+        }
+    }
+
+    if (node->score > min_score) {
+        struct sw_graph_node *outgoing = *slots[weakest_idx];
+
+        if (node->prev) node->prev->next = node->next;
+        if (node->next) node->next->prev = node->prev;
+        
+        if (model->slot_head == node) model->slot_head = node->next;
+        if (model->slot_tail == node) model->slot_tail = node->prev;
+
+        *slots[weakest_idx] = node;
+        node->next = NULL;
+        node->prev = NULL;
+
+        if (outgoing != NULL) {
+            outgoing->next = model->slot_head;
+            outgoing->prev = NULL;
+            if (model->slot_head) {
+                model->slot_head->prev = outgoing;
+            }
+            model->slot_head = outgoing;
+            if (model->slot_tail == NULL) {
+                model->slot_tail = outgoing;
+            }
+        }
+
+        if (topology_changed) *topology_changed = true;
+    }
+}
+
+void sw_graph_model_add(
+    struct sw_graph_model *model, 
+    struct sw_graph_node *node,
+    bool *topology_changed
+) {
+    if (topology_changed) *topology_changed = false;
+    if (!model || !node) return;
+
+    bool added_to_primary = true;
+
+    if (model->west_node == NULL) {
+        model->west_node = node;
+    } else if (model->east_node == NULL) {
+        model->east_node = node;
+    } else if (model->north_node == NULL) {
+        model->north_node = node;
+    } else if (model->south_node == NULL) {
+        model->south_node = node;
     } else {
-        model->tail = node->prev;
+        added_to_primary = false;
+        
+        node->next = model->slot_head;
+        node->prev = NULL;
+        
+        if (model->slot_head != NULL) {
+            model->slot_head->prev = node;
+        }
+        model->slot_head = node;
+        
+        if (model->slot_tail == NULL) {
+            model->slot_tail = node;
+        }
+    }
+
+    model->size++;
+    if (topology_changed && added_to_primary) {
+        *topology_changed = true;
+    }
+}
+
+void sw_graph_model_remove(
+    struct sw_graph_model *model, 
+    struct sw_graph_node *node,
+    bool *topology_changed
+) {
+if (topology_changed) *topology_changed = false;
+    if (!model || !node) return;
+
+    struct sw_graph_node **target_slot = NULL;
+
+    if (model->west_node == node)       target_slot = &model->west_node;
+    else if (model->east_node == node)  target_slot = &model->east_node;
+    else if (model->north_node == node) target_slot = &model->north_node;
+    else if (model->south_node == node) target_slot = &model->south_node;
+
+    if (target_slot != NULL) {
+        *target_slot = model->slot_head;
+        
+        if (model->slot_head != NULL) {
+            struct sw_graph_node *new_primary = model->slot_head;
+            model->slot_head = new_primary->next;
+            
+            if (model->slot_head != NULL) {
+                model->slot_head->prev = NULL;
+            } else {
+                model->slot_tail = NULL;
+            }
+            
+            new_primary->next = NULL;
+            new_primary->prev = NULL;
+        }
+        
+        if (topology_changed) *topology_changed = true;
+    } else {
+        if (node->prev) node->prev->next = node->next;
+        if (node->next) node->next->prev = node->prev;
+        
+        if (model->slot_head == node) model->slot_head = node->next;
+        if (model->slot_tail == node) model->slot_tail = node->prev;
     }
 
     model->size--;
-
-    node->next = NULL;
-    node->prev = NULL;
-
-    refresh_zones(model);
 }
 
 bool sw_graph_model_node_is_primary(
@@ -130,7 +190,7 @@ bool sw_graph_model_node_is_primary(
 }
 
 bool sw_graph_model_is_empty(struct sw_graph_model *model) {
-    return model->head == NULL;
+    return model->size == 0;
 }
 
 bool sw_graph_model_slot_nodes_empty(struct sw_graph_model *model) {
@@ -138,14 +198,5 @@ bool sw_graph_model_slot_nodes_empty(struct sw_graph_model *model) {
 }
 
 bool sw_graph_model_primary_nodes_empty(struct sw_graph_model *model) {
-    return model->north_node == NULL &&
-        model->west_node == NULL &&
-        model->east_node == NULL &&
-        model->south_node == NULL;
-}
-
-struct sw_graph_node* sw_graph_model_get_first_slot(struct sw_graph_model *model) {
-    if (model->south_node == NULL) return NULL;
-
-    return model->south_node->next;
+    return model->size == 0;
 }

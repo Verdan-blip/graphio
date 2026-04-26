@@ -1,0 +1,36 @@
+#ifndef SW_BORDER_ITEM_H
+#define SW_BORDER_ITEM_H
+
+#include <stdbool.h>
+
+struct sw_border_item {
+    double x, y;
+    double size;
+    double corner_radius;
+    double thickness;
+
+    void *data;
+};
+
+struct sw_border_item* sw_border_item_create();
+
+void sw_border_item_resize(
+    struct sw_border_item* item,
+    double size,
+    double corner_radius,
+    double thickness
+);
+
+void sw_border_item_set_position(
+    struct sw_border_item* item,
+    double x, double y
+);
+
+void sw_border_item_set_data(
+    struct sw_border_item* item,
+    void *data
+);
+
+void sw_border_item_destroy(struct sw_border_item* item);
+
+#endif

@@ -4,14 +4,13 @@
 #include "cairo.h"
 #include "gtk/gtk.h"
 #include "include/sw_switcher.h"
+#include "include/ui/sw_border_item.h"
+#include "include/ui/sw_flow_layout.h"
+#include "include/ui/sw_polar_layout.h"
 #include <stdbool.h>
 
 struct sw_switcher;
 struct sw_toplevel_widget;
-
-struct pos {
-    int x, y;
-};
 
 enum sw_switcher_widget_current_zone {
     SW_SWITCHER_PRIMARY_ZONE,
@@ -20,30 +19,30 @@ enum sw_switcher_widget_current_zone {
 };
 
 struct sw_switcher_widget {
-    struct sw_switcher *model;
+    struct sw_switcher *switcher;
+
+    struct sw_polar_layout *primary_layout;
+    double primary_layout_pos_x, primary_layout_pos_y;
+    
+    struct sw_flow_layout *slot_layout;
+    double slot_layout_pos_x, slot_layout_pos_y;
+
+    struct sw_border_item *selection_border;
+    struct sw_border_item *current_toplevel_border;
 
     int width, height;
-    int corner_radius;
 
-    int primary_square_width, primary_square_height;
-    int slot_rect_width, slot_rect_height; 
-    int padding_between_containers;
-    
-    int primary_square_horizontal_padding;
-    
-    int inner_paddings;
-    int paddings_between_toplevels;
-
-    int content_width, content_height;
-    int toplevel_primary_area_width, toplevel_primary_area_height;
-    int toplevel_slot_area_width, toplevel_slot_area_height;
+    int padding_between_layouts;
 
     struct sw_toplevel_widget *selected_toplevel_widget;
-
     enum sw_switcher_widget_current_zone current_zone;
 
-    bool is_slot_widget_visible;
+    float *primary_bg_active_color;
+    float *primary_bg_inactive_color;
+    float *slot_bg_active_color;
+    float *slot_bg_inactive_color;
 
+    bool is_slot_widget_visible;
     GtkWidget *window;
 };
 
@@ -73,19 +72,24 @@ void sw_switcher_widget_on_remove_toplevel(
     struct sw_toplevel_widget *toplevel_widget
 );
 
-void sw_switcher_widget_on_update_toplevel(
-    struct sw_switcher_widget *switcher_widget
-);
-
 void sw_switcher_widget_mark_toplevel_selected(
     struct sw_switcher_widget *switcher_widget,
     struct sw_toplevel_widget *toplevel_widget
 );
 
-void sw_switcher_widget_enter_primary_zone(struct sw_switcher_widget *switcher_widget);
-
-void sw_switcher_widget_enter_slot_zone(struct sw_switcher_widget *switcher_widget);
+void sw_switcher_widget_notify_is_current_toplevel_change(
+    struct sw_switcher_widget *switcher_widget,
+    struct sw_toplevel_widget *toplevel_widget
+);
 
 void sw_switcher_widget_destroy(struct sw_switcher_widget *switcher_widget);
+
+void sw_switcher_widget_enter_primary_zone(struct sw_switcher_widget *switcher_widget);
+void sw_switcher_widget_enter_slot_zone(struct sw_switcher_widget *switcher_widget);
+
+void sw_switcher_widget_notify_topology_changed(struct sw_switcher_widget *switcher_widget);
+
+void sw_switcher_widget_notify_positions_changed(struct sw_switcher_widget *switcher_widget);
+void sw_switcher_widget_notify_sizes_changed(struct sw_switcher_widget *switcher_widget);
 
 #endif

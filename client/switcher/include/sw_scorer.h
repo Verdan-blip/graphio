@@ -1,6 +1,8 @@
 #ifndef SW_SCORER
 #define SW_SCORER
 
+#include <stdbool.h>
+
 enum sw_scorer_event_type {
     SW_SCORER_EVENT_TYPE_FOCUS,
     SW_SCORER_EVENT_TYPE_OPEN,

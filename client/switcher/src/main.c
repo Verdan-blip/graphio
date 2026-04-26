@@ -39,7 +39,7 @@ static gboolean handle_primary_toplevel_activation(
     struct sw_switcher_widget *switcher_widget,
     struct sw_toplevel *primary_toplevel
 ) {
-    struct sw_switcher *switcher = switcher_widget->model;
+    struct sw_switcher *switcher = switcher_widget->switcher;
 
     if (primary_toplevel == NULL) return false;
 
@@ -55,7 +55,7 @@ static gboolean on_key_press_in_primary_zone(
     struct sw_switcher_widget *switcher_widget,
     guint keyval
 ) {
-    struct sw_switcher *switcher = switcher_widget->model;
+    struct sw_switcher *switcher = switcher_widget->switcher;
     struct sw_graph_model *graph = switcher->graph_model;
 
     switch (keyval) {
@@ -76,12 +76,12 @@ static gboolean on_key_press_in_primary_zone(
                 );
             }
 
-            struct sw_toplevel *selected = switcher_widget->selected_toplevel_widget->model;
+            struct sw_toplevel *selected = switcher_widget->selected_toplevel_widget->toplevel;
 
             if (selected == north_toplevel) {
                 if (sw_graph_model_slot_nodes_empty(graph)) return false;
 
-                struct sw_graph_node *first_slot_node = sw_graph_model_get_first_slot(graph);
+                struct sw_graph_node *first_slot_node = graph->slot_head;
                 if (first_slot_node == NULL) return false;
 
                 struct sw_toplevel *first_slot_toplevel = first_slot_node->data;
@@ -142,10 +142,10 @@ static gboolean on_key_press_in_slot_zone(
     struct sw_switcher_widget *switcher_widget,
     guint keyval
 ) {
-    struct sw_switcher *switcher = switcher_widget->model;
+    struct sw_switcher *switcher = switcher_widget->switcher;
     struct sw_graph_model *graph = switcher->graph_model;
 
-    struct sw_toplevel *current = switcher_widget->selected_toplevel_widget->model;
+    struct sw_toplevel *current = switcher_widget->selected_toplevel_widget->toplevel;
 
     switch (keyval) {
         case GDK_KEY_Down: {
@@ -191,7 +191,7 @@ static gboolean on_key_press_in_slot_zone(
 
 gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, gpointer data) {
     struct sw_switcher_widget *switcher_widget = data;
-    struct sw_switcher *switcher = switcher_widget->model;
+    struct sw_switcher *switcher = switcher_widget->switcher;
 
     if (switcher_widget->current_zone == SW_SWITCHER_PRIMARY_ZONE) {
         return on_key_press_in_primary_zone(switcher_widget, event->keyval);
@@ -206,14 +206,14 @@ gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, gpointer data) {
 
 gboolean on_key_release(GtkWidget *widget, GdkEventKey *event, gpointer data) {
     struct sw_switcher_widget *switcher_widget = data;
-    struct sw_switcher *switcher = switcher_widget->model;
+    struct sw_switcher *switcher = switcher_widget->switcher;
 
     struct sw_toplevel_widget *selected = switcher_widget->selected_toplevel_widget;
 
     if (selected == NULL) return true;
 
     if (event->keyval == GDK_KEY_Super_L) {
-        sw_switcher_set_activated(switcher, selected->model);
+        sw_switcher_set_activated(switcher, selected->toplevel);
 
         sw_switcher_widget_enter_primary_zone(switcher_widget);
         sw_switcher_widget_mark_toplevel_selected(switcher_widget, NULL);

@@ -41,6 +41,10 @@ sources = [
   'src/sw_toplevel.c',
   'src/sw_scorer.c',
   'src/sw_graph_model.c',
+  'src/ui/sw_flow_layout.c',
+  'src/ui/sw_polar_layout.c',
+  'src/ui/sw_primitives.c',
+  'src/ui/sw_border_item.c',
   'src/ui/sw_toplevel_widget.c',
   'src/ui/sw_switcher_widget.c',
   '../../protocols/src/wlr-foreign-toplevel-management-unstable-v1-protocol.c'
