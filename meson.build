@@ -39,8 +39,6 @@ sources = [
   'src/g_toplevel_handle.c',
   'src/g_launcher.c',
   'src/g_layer_surface.c',
-  'src/utils/g_image.c',
-  'src/utils/g_image_utils.c',
   'include/generated/contract/protobuf/window_events.pb-c.c'
 ]
 
