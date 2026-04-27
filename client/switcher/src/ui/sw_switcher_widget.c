@@ -3,6 +3,7 @@
 #include <wayland-util.h>
 
 #include "include/ui/sw_switcher_widget.h"
+#include "include/math/sw_color.h"
 #include "include/math/sw_vec2.h"
 #include "include/ui/animation/sw_animation_manager.h"
 #include "include/ui/sw_border_item.h"
@@ -67,8 +68,7 @@ void sw_switcher_widget_init(struct sw_switcher *switcher, GtkWidget *window) {
 
     switcher_widget->switcher = switcher;
     switcher_widget->window = window;
-    switcher_widget->width = 1;
-    switcher_widget->height = 1;
+    switcher_widget->size = sw_vec2_create(1, 1);
 
     switcher_widget->primary_layout = sw_polar_layout_create();
     switcher_widget->slot_layout = sw_flow_layout_create();
@@ -82,29 +82,14 @@ void sw_switcher_widget_init(struct sw_switcher *switcher, GtkWidget *window) {
 
     switcher_widget->selected_toplevel_widget = NULL;
 
-    switcher_widget->primary_bg_active_color = malloc(4 * sizeof(float));
-    switcher_widget->primary_bg_active_color[0] = 0.10f;
-    switcher_widget->primary_bg_active_color[1] = 0.11f;
-    switcher_widget->primary_bg_active_color[2] = 0.15f;
-    switcher_widget->primary_bg_active_color[3] = 0.85f;
+    switcher_widget->primary_bg_active_color = sw_color_create(0.10, 0.11, 0.15, 0.85);
+    switcher_widget->primary_bg_inactive_color = sw_color_create(0.10, 0.11, 0.15, 0.55);
+    
+    switcher_widget->slot_bg_active_color  = sw_color_create(0.10, 0.11, 0.15, 0.85);
+    switcher_widget->slot_bg_inactive_color  = sw_color_create(0.10, 0.11, 0.15, 0.55);
 
-    switcher_widget->primary_bg_inactive_color = malloc(4 * sizeof(float));
-    switcher_widget->primary_bg_inactive_color[0] = 0.10f;
-    switcher_widget->primary_bg_inactive_color[1] = 0.11f;
-    switcher_widget->primary_bg_inactive_color[2] = 0.15f;
-    switcher_widget->primary_bg_inactive_color[3] = 0.55f;
-
-    switcher_widget->slot_bg_active_color = malloc(4 * sizeof(float));
-    switcher_widget->slot_bg_active_color[0] = 0.10f;
-    switcher_widget->slot_bg_active_color[1] = 0.11f;
-    switcher_widget->slot_bg_active_color[2] = 0.15f;
-    switcher_widget->slot_bg_active_color[3] = 0.85f;
-
-    switcher_widget->slot_bg_inactive_color = malloc(4 * sizeof(float));
-    switcher_widget->slot_bg_inactive_color[0] = 0.10f;
-    switcher_widget->slot_bg_inactive_color[1] = 0.11f;
-    switcher_widget->slot_bg_inactive_color[2] = 0.15f;
-    switcher_widget->slot_bg_inactive_color[3] = 0.55f;
+    switcher_widget->current_indicator_color = sw_color_create(0.68f, 0.68f, 1.0f, 0.5f);
+    switcher_widget->selection_color = sw_color_create(0.68f, 0.68f, 1.0f, 1.0f);
 
     switcher_widget->animation_manager = sw_animation_manager_create();
 
@@ -113,21 +98,20 @@ void sw_switcher_widget_init(struct sw_switcher *switcher, GtkWidget *window) {
 
 void sw_switcher_widget_update_size(
     struct sw_switcher_widget *switcher_widget, 
-    int width, int height
+    struct sw_vec2 size
 ) {
-    switcher_widget->width = width;
-    switcher_widget->height = height;
+    switcher_widget->size = size;
 
-    double slot_height = height * SLOT_H_RATIO;
-    struct sw_vec2 primary_size = sw_vec2_create(height * PRIMARY_H_RATIO, height * PRIMARY_H_RATIO);
-    double gap = height - slot_height - primary_size.y;
+    double slot_height = size.y * SLOT_H_RATIO;
+    struct sw_vec2 primary_size = sw_vec2_create(size.y * PRIMARY_H_RATIO, size.y * PRIMARY_H_RATIO);
+    double gap = size.y - slot_height - primary_size.y;
 
     double slot_inner_padding = 24;
     double slot_gap_between_items = 32;
     double slot_item_height = slot_height - slot_inner_padding * 2;
     sw_flow_layout_resize(
         switcher_widget->slot_layout,
-        width,
+        size.x,
         sw_vec2_create(slot_item_height, slot_item_height),
         slot_inner_padding,
         slot_gap_between_items
@@ -140,7 +124,7 @@ void sw_switcher_widget_update_size(
         primary_inner_padding
     );
 
-    switcher_widget->primary_layout_pos.x = (width - switcher_widget->primary_layout->canvas_size.x) / 2;
+    switcher_widget->primary_layout_pos.x = (size.x - switcher_widget->primary_layout->canvas_size.x) / 2;
     switcher_widget->primary_layout_pos.y = slot_height + gap;
 
     switcher_widget->slot_layout_pos.x = 0;
@@ -187,19 +171,6 @@ void sw_switcher_widget_on_remove_toplevel(
     if (switcher_widget->window) sw_switcher_widget_redraw(switcher_widget);
 }
 
-static void sw_switcher_draw_primary_item(
-    struct sw_polar_layout *primary_layout,
-    struct sw_polar_layout_item *item,
-    cairo_t *cr
-) {
-    sw_toplevel_widget_draw_placeholder(
-        item->pos, 
-        primary_layout->canvas_size, 
-        primary_layout->corner_radius, 
-        cr
-    );
-}
-
 void sw_switcher_widget_draw(
     struct sw_switcher_widget *switcher_widget,
     cairo_t *cr
@@ -207,7 +178,7 @@ void sw_switcher_widget_draw(
     // Drawing slot toplevels background
     struct sw_flow_layout *slot_layout = switcher_widget->slot_layout;
     if (switcher_widget->is_slot_widget_visible) {
-        float *slot_bg_color;
+        struct sw_color slot_bg_color;
         if (switcher_widget->current_zone == SW_SWITCHER_SLOT_ZONE) {
             slot_bg_color = switcher_widget->slot_bg_active_color;
         } else {
@@ -229,7 +200,7 @@ void sw_switcher_widget_draw(
     // Drawing primary toplevels background
     struct sw_polar_layout *primary_layout = switcher_widget->primary_layout;
 
-    float *primary_bg_color;
+    struct sw_color primary_bg_color;
     if (switcher_widget->current_zone != SW_SWITCHER_PRIMARY_ZONE) {
         primary_bg_color = switcher_widget->slot_bg_inactive_color;
     } else {
@@ -260,7 +231,8 @@ void sw_switcher_widget_draw(
             sw_toplevel_widget_draw_placeholder(
                 global_item_pos, 
                 primary_item->size,
-                primary_item->corner_radius, 
+                primary_item->corner_radius,
+                switcher_widget->current_indicator_color,
                 cr
             );
         } else {
@@ -303,22 +275,19 @@ void sw_switcher_widget_draw(
         current_toplevel_border->size,
         current_toplevel_border->corner_radius, 
         current_toplevel_border->thickness,
-        current_toplevel_border_color,
+        switcher_widget->current_indicator_color,
         cr
     );
 
     // Drawing selection border
     struct sw_border_item *selection_border = switcher_widget->selection_border;
-    float selection_border_color[4] = {
-        0.68f, 0.68f, 1.0f, 1.0f
-    };
 
     sw_draw_outlined_round_corner_rect(
         selection_border->pos, 
         selection_border->size,
         selection_border->corner_radius, 
         selection_border->thickness,
-        selection_border_color,
+        switcher_widget->selection_color,
         cr
     );
 }

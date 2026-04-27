@@ -1,3 +1,4 @@
+#include "include/math/sw_vec2.h"
 #define _POSIX_C_SOURCE 200809L
 
 #include <wayland-client-protocol.h>
@@ -31,7 +32,7 @@ static gboolean on_draw(GtkWidget *widget, cairo_t *cr, gpointer data) {
 static gboolean on_area_size_allocate(GtkWidget *widget, GdkRectangle *allocation, gpointer data) {
     struct sw_switcher_widget *switcher_widget = data;
 
-    sw_switcher_widget_update_size(switcher_widget, allocation->width, allocation->height);
+    sw_switcher_widget_update_size(switcher_widget, sw_vec2_create(allocation->width, allocation->height));
 
     return TRUE;
 }

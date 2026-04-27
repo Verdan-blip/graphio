@@ -5,6 +5,7 @@
 #include "gdk-pixbuf/gdk-pixbuf.h"
 #include <stdbool.h>
 
+#include "include/math/sw_color.h"
 #include "include/math/sw_vec2.h"
 
 struct sw_toplevel;
@@ -50,13 +51,7 @@ void sw_toplevel_widget_draw_placeholder(
     struct sw_vec2 pos,
     struct sw_vec2 size,
     int corner_radius,
-    cairo_t *cr
-);
-
-void sw_toplevel_widget_draw_selection(
-    struct sw_vec2 pos,
-    struct sw_vec2 size,
-    int corner_radius,
+    struct sw_color color,
     cairo_t *cr
 );
 

@@ -1,12 +1,15 @@
-#include "include/ui/sw_primitives.h"
 #include "glib.h"
+
+#include "include/ui/sw_primitives.h"
+#include "include/math/sw_color.h"
+
 #include "include/math/sw_vec2.h"
 
 void sw_draw_filled_round_corner_rect(
     struct sw_vec2 pos,
     struct sw_vec2 size,
     double r,
-    float* color,
+    struct sw_color color,
     cairo_t *cr
 ) {
     if (r > size.x / 2) r = size.x / 2;
@@ -17,10 +20,10 @@ void sw_draw_filled_round_corner_rect(
 
     cairo_set_source_rgba(
         cr, 
-        color[0],
-        color[1],
-        color[2],
-        color[3]
+        color.r,
+        color.g,
+        color.b,
+        color.a
     );
 
     cairo_new_sub_path(cr);
@@ -55,15 +58,15 @@ void sw_draw_dashed_round_corner_rect(
     struct sw_vec2 size,
     double r,
     double stroke,
-    float* color,
+    struct sw_color color,
     cairo_t *cr
 ) {
     cairo_set_source_rgba(
         cr, 
-        color[0],
-        color[1],
-        color[2],
-        color[3]
+        color.r,
+        color.g,
+        color.b,
+        color.a
     );
 
     double dashes[] = { 10.0, 10.0 }; 
@@ -89,15 +92,15 @@ void sw_draw_outlined_round_corner_rect(
     struct sw_vec2 size,
     double r,
     double stroke,
-    float* color,
+    struct sw_color color,
     cairo_t *cr
 ) {
     cairo_set_source_rgba(
         cr, 
-        color[0],
-        color[1],
-        color[2],
-        color[3]
+        color.r,
+        color.g,
+        color.b,
+        color.a
     );
 
     cairo_new_sub_path(cr);

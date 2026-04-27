@@ -1,3 +1,4 @@
+#include "include/math/sw_color.h"
 #include "include/math/sw_vec2.h"
 #include "include/ui/sw_primitives.h"
 #include <stdbool.h>
@@ -131,15 +132,9 @@ void sw_toplevel_widget_draw_placeholder(
     struct sw_vec2 pos,
     struct sw_vec2 size,
     int corner_radius,
+    struct sw_color color,
     cairo_t *cr
 ) {
-    float color[4] = { 
-        173 / 255.0f, 
-        173 / 255.0f, 
-        255 / 255.0f, 
-        128 / 255.0f 
-    };
-
     sw_draw_dashed_round_corner_rect(
         pos, 
         size, 
@@ -148,22 +143,6 @@ void sw_toplevel_widget_draw_placeholder(
         color, 
         cr
     );
-}
-
-void sw_toplevel_widget_draw_selection(
-    struct sw_vec2 pos,
-    struct sw_vec2 size,
-    int corner_radius,
-    cairo_t *cr
-) {
-    float color[4] = { 
-        173 / 255.0f, 
-        173 / 255.0f, 
-        255 / 255.0f, 
-        255 / 255.0f 
-    };
-
-    sw_draw_outlined_round_corner_rect(pos, size, corner_radius, 2, color, cr);
 }
 
 void sw_toplevel_widget_destroy(struct sw_toplevel_widget *tw) {
