@@ -1,20 +1,21 @@
 #ifndef SW_FLOW_LAYOUT_H
 #define SW_FLOW_LAYOUT_H
 
+#include "include/math/sw_vec2.h"
 struct sw_flow_item {
-    double x, y;
-    double width, height;
+    struct sw_vec2 pos;
+    struct sw_vec2 size;
     double corner_radius;
 
     void *data;
 };
 
 struct sw_flow_layout {
-    double x, y;
-
     double canvas_size;
     double max_width;
-    double item_size;
+
+    struct sw_vec2 item_size;
+
     double inner_padding;
     double gap;
     double corner_radius;
@@ -43,7 +44,7 @@ void sw_flow_layout_clear(struct sw_flow_layout *layout);
 void sw_flow_layout_resize(
     struct sw_flow_layout *layout, 
     double max_width, 
-    double item_size, 
+    struct sw_vec2 item_size, 
     double inner_paddings,
     double gap
 );

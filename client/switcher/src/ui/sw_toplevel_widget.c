@@ -1,3 +1,4 @@
+#include "include/math/sw_vec2.h"
 #include "include/ui/sw_primitives.h"
 #include <stdbool.h>
 #define _POSIX_C_SOURCE 200809L
@@ -97,24 +98,24 @@ void sw_toplevel_widget_slot_update_size(
 void sw_toplevel_widget_draw(
     struct sw_toplevel_widget *toplevel_widget,
     struct sw_switcher_widget *switcher_widget, 
-    double x, double y,
-    double size,
+    struct sw_vec2 pos,
+    struct sw_vec2 size,
     cairo_t *cr
 ) {
-    if (size <= 0) return;
+    if (size.x <= 0 || size.y <= 0) return;
 
     int real_icon_width = gdk_pixbuf_get_width(toplevel_widget->pixbuff);
     int real_icon_height = gdk_pixbuf_get_height(toplevel_widget->pixbuff);
 
-    double scale_x = size / real_icon_width;
-    double scale_y = size / real_icon_height;
+    double scale_x = size.x / real_icon_width;
+    double scale_y = size.y / real_icon_height;
 
-    double scale_offset_x = -(real_icon_width - size) / 2.0;
-    double scale_offset_y = -(real_icon_height - size) / 2.0;
+    double scale_offset_x = -(real_icon_width - size.x) / 2.0;
+    double scale_offset_y = -(real_icon_height - size.y) / 2.0;
 
     cairo_save(cr);
 
-    cairo_translate(cr, x, y);
+    cairo_translate(cr, pos.x, pos.y);
     cairo_scale(cr, scale_x, scale_y);
 
     gdk_cairo_set_source_pixbuf(cr,  toplevel_widget->pixbuff, 0, 0);
@@ -127,8 +128,8 @@ void sw_toplevel_widget_draw(
 }
 
 void sw_toplevel_widget_draw_placeholder(
-    int x, int y, 
-    int w, int h,
+    struct sw_vec2 pos,
+    struct sw_vec2 size,
     int corner_radius,
     cairo_t *cr
 ) {
@@ -139,12 +140,19 @@ void sw_toplevel_widget_draw_placeholder(
         128 / 255.0f 
     };
 
-    sw_draw_dashed_round_corner_rect(x, y, w, h, corner_radius, 2, color, cr);
+    sw_draw_dashed_round_corner_rect(
+        pos, 
+        size, 
+        corner_radius, 
+        2, 
+        color, 
+        cr
+    );
 }
 
 void sw_toplevel_widget_draw_selection(
-    int x, int y, 
-    int w, int h,
+    struct sw_vec2 pos,
+    struct sw_vec2 size,
     int corner_radius,
     cairo_t *cr
 ) {
@@ -155,7 +163,7 @@ void sw_toplevel_widget_draw_selection(
         255 / 255.0f 
     };
 
-    sw_draw_outlined_round_corner_rect(x, y, w, h, corner_radius, 2, color, cr);
+    sw_draw_outlined_round_corner_rect(pos, size, corner_radius, 2, color, cr);
 }
 
 void sw_toplevel_widget_destroy(struct sw_toplevel_widget *tw) {

@@ -3,7 +3,9 @@
 
 #include "cairo.h"
 #include "gtk/gtk.h"
+#include "include/math/sw_vec2.h"
 #include "include/sw_switcher.h"
+#include "include/ui/animation/sw_animation_manager.h"
 #include "include/ui/sw_border_item.h"
 #include "include/ui/sw_flow_layout.h"
 #include "include/ui/sw_polar_layout.h"
@@ -22,10 +24,10 @@ struct sw_switcher_widget {
     struct sw_switcher *switcher;
 
     struct sw_polar_layout *primary_layout;
-    double primary_layout_pos_x, primary_layout_pos_y;
-    
     struct sw_flow_layout *slot_layout;
-    double slot_layout_pos_x, slot_layout_pos_y;
+
+    struct sw_vec2 primary_layout_pos;
+    struct sw_vec2 slot_layout_pos;
 
     struct sw_border_item *selection_border;
     struct sw_border_item *current_toplevel_border;
@@ -41,6 +43,8 @@ struct sw_switcher_widget {
     float *primary_bg_inactive_color;
     float *slot_bg_active_color;
     float *slot_bg_inactive_color;
+
+    struct sw_animation_manager *animation_manager;
 
     bool is_slot_widget_visible;
     GtkWidget *window;

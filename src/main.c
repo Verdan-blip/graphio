@@ -36,7 +36,6 @@
 #include "include/g_layer_surface.h"
 #include "include/g_server.h"
 #include "include/g_toplevel.h"
-#include "include/utils/g_image_utils.h"
 
 struct wlr_output* g_server_get_current_output(struct g_server *server) {
 	struct wlr_cursor *cursor = server->cursor;

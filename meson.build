@@ -38,17 +38,15 @@ sources = [
   'src/g_toplevel.c',
   'src/g_toplevel_handle.c',
   'src/g_launcher.c',
-  'src/g_layer_surface.c',
-  'include/generated/contract/protobuf/window_events.pb-c.c'
+  'src/g_layer_surface.c'
 ]
 
 protocols_inc = include_directories('protocols')
-gen_inc = include_directories('include/generated')
 
 executable(
   'graphio',
   sources,
-  include_directories: [protocols_inc, gen_inc],
+  include_directories: [protocols_inc],
   dependencies: [
     wlroots,
     wayland_server,

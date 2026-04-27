@@ -1,11 +1,12 @@
 #ifndef SW_BORDER_ITEM_H
 #define SW_BORDER_ITEM_H
 
+#include "include/math/sw_vec2.h"
 #include <stdbool.h>
 
 struct sw_border_item {
-    double x, y;
-    double size;
+    struct sw_vec2 pos;
+    struct sw_vec2 size;
     double corner_radius;
     double thickness;
 
@@ -16,14 +17,14 @@ struct sw_border_item* sw_border_item_create();
 
 void sw_border_item_resize(
     struct sw_border_item* item,
-    double size,
+    struct sw_vec2 size,
     double corner_radius,
     double thickness
 );
 
 void sw_border_item_set_position(
     struct sw_border_item* item,
-    double x, double y
+    struct sw_vec2 pos
 );
 
 void sw_border_item_set_data(

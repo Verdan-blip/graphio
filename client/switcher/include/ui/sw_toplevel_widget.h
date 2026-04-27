@@ -5,6 +5,8 @@
 #include "gdk-pixbuf/gdk-pixbuf.h"
 #include <stdbool.h>
 
+#include "include/math/sw_vec2.h"
+
 struct sw_toplevel;
 struct sw_switcher_widget;
 
@@ -39,23 +41,21 @@ void sw_toplevel_widget_slot_update_size(
 void sw_toplevel_widget_draw(
     struct sw_toplevel_widget *toplevel_widget,
     struct sw_switcher_widget *switcher_widget, 
-    double x, double y,
-    double size,
+    struct sw_vec2 pos,
+    struct sw_vec2 size,
     cairo_t *cr
 );
 
 void sw_toplevel_widget_draw_placeholder(
-    int x, 
-    int y, 
-    int w, 
-    int h, 
-    int corner_radius, 
+    struct sw_vec2 pos,
+    struct sw_vec2 size,
+    int corner_radius,
     cairo_t *cr
 );
 
 void sw_toplevel_widget_draw_selection(
-    int x, int y, 
-    int w, int h,
+    struct sw_vec2 pos,
+    struct sw_vec2 size,
     int corner_radius,
     cairo_t *cr
 );

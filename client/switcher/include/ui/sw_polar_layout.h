@@ -1,6 +1,7 @@
 #ifndef SW_POLAR_LAYOUT_H
 #define SW_POLAR_LAYOUT_H
 
+#include "include/math/sw_vec2.h"
 #include <stdbool.h>
 
 enum sw_polar_item_position {
@@ -11,14 +12,14 @@ enum sw_polar_item_position {
 };
 
 struct sw_polar_layout_item {
-    double size;
-    double x, y;
+    struct sw_vec2 size;
+    struct sw_vec2 pos;
     int corner_radius;
     void *data;
 };
 
 struct sw_polar_layout {
-    double canvas_size;
+    struct sw_vec2 canvas_size;
 
     int inner_paddings;
     int corner_radius;
@@ -50,7 +51,7 @@ struct sw_polar_layout_item* sw_polar_layout_find_by_data(
 
 void sw_polar_layout_resize(
     struct sw_polar_layout *layout, 
-    double new_size,
+    struct sw_vec2 new_size,
     int inner_paddings
 );
 

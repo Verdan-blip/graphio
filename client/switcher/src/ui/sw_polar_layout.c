@@ -2,29 +2,30 @@
 #include <string.h>
 
 #include "include/ui/sw_polar_layout.h"
+#include "include/math/sw_vec2.h"
 
 static const double ITEM_SCALE = 0.25;
 static const double ITEM_CORNER_RADIUS_SCALE = 0.25;
 static const double CORNER_RADIUS_SCALE = 0.18;
+static const double ITEM_CENTER_SCALE = 0.45;
 
 static void update_item(
     struct sw_polar_layout_item *item,
-    double x, double y,
-    double size
+    struct sw_vec2 pos,
+    struct sw_vec2 size
 ) {
     item->size = size;
-    item->x = x;
-    item->y = y;
-    item->corner_radius = size * ITEM_CORNER_RADIUS_SCALE;
+    item->pos = pos;
+    item->corner_radius = size.y * ITEM_CORNER_RADIUS_SCALE;
 }
 
 static struct sw_polar_layout_item* create_item(
-    double x, double y,
-    double size
+    struct sw_vec2 pos,
+    struct sw_vec2 size
 ) {
     struct sw_polar_layout_item *item = malloc(sizeof(struct sw_polar_layout_item));
     
-    update_item(item, x, y, size);
+    update_item(item, pos, size);
 
     item->data = NULL;
 
@@ -36,44 +37,49 @@ static void update_item_positions(
 ) {
     double inner_padding = layout->inner_paddings;
 
-    double area_size = layout->canvas_size - inner_padding * 2;
+    struct sw_vec2 area_size = sw_vec2_create(
+        layout->canvas_size.x - inner_padding * 2,
+        layout->canvas_size.y - inner_padding * 2
+    );
 
-    double item_size = area_size * ITEM_SCALE;
-    double item_corner_radius = item_size * ITEM_CORNER_RADIUS_SCALE;
+    struct sw_vec2 item_size = sw_vec2_mul(area_size, ITEM_SCALE);
 
-    double x, y;
+    double item_corner_radius = item_size.y * ITEM_CORNER_RADIUS_SCALE;
 
-    x = (area_size - item_size) / 2 + inner_padding;
-    y = inner_padding;
-    update_item(layout->north, x, y, item_size);
+    struct sw_vec2 pos;
 
-    x = (area_size - item_size) / 2 + inner_padding;
-    y = area_size + inner_padding - item_size;
-    update_item(layout->south, x, y, item_size);
+    pos.x = (area_size.x - item_size.x) / 2 + inner_padding;
+    pos.y = inner_padding;
+    update_item(layout->north, pos, item_size);
 
-    x = inner_padding;
-    y = (area_size - item_size) / 2 + inner_padding;
-    update_item(layout->west, x, y, item_size);
+    pos.x = (area_size.x - item_size.x) / 2 + inner_padding;
+    pos.y = area_size.y + inner_padding - item_size.y;
+    update_item(layout->south, pos, item_size);
 
-    x = area_size + inner_padding - item_size;
-    y = (area_size - item_size) / 2 + inner_padding;
-    update_item(layout->east, x, y, item_size);
+    pos.x = inner_padding;
+    pos.y = (area_size.x - item_size.x) / 2 + inner_padding;
+    update_item(layout->west, pos, item_size);
 
-    x = (area_size - item_size) / 2 + inner_padding;
-    y = (area_size - item_size) / 2 + inner_padding;
-    update_item(layout->center, x, y, item_size);
+    pos.x = area_size.x + inner_padding - item_size.x;
+    pos.y = (area_size.x - item_size.x) / 2 + inner_padding;
+    update_item(layout->east, pos, item_size);
+
+    struct sw_vec2 center_item_size = sw_vec2_mul(item_size, ITEM_CENTER_SCALE);
+    pos.x = (area_size.x - center_item_size.x) / 2 + inner_padding;
+    pos.y = (area_size.y - center_item_size.y) / 2 + inner_padding;
+    update_item(layout->center, pos, center_item_size);
 }
 
 struct sw_polar_layout* sw_polar_layout_create() {
     struct sw_polar_layout *layout = calloc(1, sizeof(struct sw_polar_layout));
     if (!layout) return NULL;
 
-    layout->east = create_item(0, 0, 0);
-    layout->west = create_item(0, 0, 0);
-    layout->north = create_item(0, 0, 0);
-    layout->south = create_item(0, 0, 0);
+    layout->east = create_item(sw_vec2_empty(), sw_vec2_empty());
+    layout->west = create_item(sw_vec2_empty(), sw_vec2_empty());
+    layout->north = create_item(sw_vec2_empty(), sw_vec2_empty());
+    layout->south = create_item(sw_vec2_empty(), sw_vec2_empty());
 
-    layout->center = create_item(0, 0, 0);
+    layout->center = create_item(sw_vec2_empty(), sw_vec2_empty());
 
     update_item_positions(layout);
 
@@ -98,12 +104,12 @@ void sw_polar_layout_set_item_data(
 
 void sw_polar_layout_resize(
     struct sw_polar_layout *layout, 
-    double new_size,
+    struct sw_vec2 new_size,
     int inner_paddings
 ) {
     if (!layout) return;
     layout->canvas_size = new_size;
-    layout->corner_radius = new_size * CORNER_RADIUS_SCALE;
+    layout->corner_radius = new_size.y * CORNER_RADIUS_SCALE;
     layout->inner_paddings = inner_paddings;
 
     update_item_positions(layout);

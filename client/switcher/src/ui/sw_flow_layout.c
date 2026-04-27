@@ -1,6 +1,7 @@
 #include <stdlib.h>
 
 #include "include/ui/sw_flow_layout.h"
+#include "include/math/sw_vec2.h"
 
 static const double CORNER_RADIUS_SCALE = 0.05;
 static const double ITEM_CORNER_RADIUS_SCALE = 0.25;
@@ -14,7 +15,7 @@ static void flow_layout_update(struct sw_flow_layout *layout) {
     }
 
     double available_width = layout->max_width - (layout->inner_padding * 2);
-    int cols = (int) ((available_width + layout->gap) / (layout->item_size + layout->gap));
+    int cols = (int) ((available_width + layout->gap) / (layout->item_size.x + layout->gap));
     if (cols < 1) cols = 1;
 
     layout->columns = cols;
@@ -24,15 +25,14 @@ static void flow_layout_update(struct sw_flow_layout *layout) {
         int row = i / cols;
         int col = i % cols;
 
-        layout->items[i]->x = layout->inner_padding + col * (layout->item_size + layout->gap);
-        layout->items[i]->y = layout->inner_padding + row * (layout->item_size + layout->gap);
+        layout->items[i]->pos.x = layout->inner_padding + col * (layout->item_size.x + layout->gap);
+        layout->items[i]->pos.y = layout->inner_padding + row * (layout->item_size.y + layout->gap);
 
-        layout->items[i]->width = layout->item_size;
-        layout->items[i]->height = layout->item_size;
-        layout->items[i]->corner_radius = layout->item_size * ITEM_CORNER_RADIUS_SCALE;
+        layout->items[i]->size = layout->item_size;
+        layout->items[i]->corner_radius = layout->item_size.x * ITEM_CORNER_RADIUS_SCALE;
     }
 
-    layout->total_height = (layout->rows * layout->item_size) + 
+    layout->total_height = (layout->rows * layout->item_size.y) + 
                            ((layout->rows - 1) * layout->gap) + 
                            (layout->inner_padding * 2);
     
@@ -41,9 +41,6 @@ static void flow_layout_update(struct sw_flow_layout *layout) {
 
 struct sw_flow_layout* sw_flow_layout_create() {
     struct sw_flow_layout *layout = calloc(1, sizeof(struct sw_flow_layout));
-
-    layout->x = 0;
-    layout->y = 0;
 
     layout->items_count = 0;
     layout->items_capacity = 8;
@@ -59,7 +56,7 @@ struct sw_flow_layout* sw_flow_layout_create() {
 void sw_flow_layout_resize(
     struct sw_flow_layout *layout, 
     double max_width, 
-    double item_size, 
+    struct sw_vec2 item_size, 
     double inner_paddings,
     double gap
 ) {
@@ -79,9 +76,8 @@ void sw_flow_layout_add_item(struct sw_flow_layout *layout, void *data) {
     }
 
     struct sw_flow_item *item = malloc(sizeof(struct sw_flow_item));
-    item->width = layout->item_size;
-    item->height = layout->item_size;
-    item->corner_radius = layout->item_size * ITEM_CORNER_RADIUS_SCALE;
+    item->size = layout->item_size;
+    item->corner_radius = layout->item_size.x * ITEM_CORNER_RADIUS_SCALE;
     item->data = data;
     
     layout->items[layout->items_count++] = item;

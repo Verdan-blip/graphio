@@ -37,6 +37,7 @@ gtk_layer = dependency('gtk-layer-shell-0')
 
 sources = [
   'src/main.c',
+  'src/math/sw_vec2.c',
   'src/sw_switcher.c',
   'src/sw_toplevel.c',
   'src/sw_scorer.c',
@@ -47,6 +48,8 @@ sources = [
   'src/ui/sw_border_item.c',
   'src/ui/sw_toplevel_widget.c',
   'src/ui/sw_switcher_widget.c',
+  'src/ui/animation/sw_animation.c',
+  'src/ui/animation/sw_animation_manager.c',
   '../../protocols/src/wlr-foreign-toplevel-management-unstable-v1-protocol.c'
 ]
 

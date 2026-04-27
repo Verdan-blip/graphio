@@ -1,4 +1,3 @@
-#include "include/sw_graph_model.h"
 #define _POSIX_C_SOURCE 200809L
 
 #include <wayland-client-protocol.h>
@@ -16,6 +15,8 @@
 
 #include "include/sw_toplevel.h"
 #include "include/sw_switcher.h"
+#include "include/sw_graph_model.h"
+#include "include/ui/animation/sw_animation_manager.h"
 #include "include/ui/sw_switcher_widget.h"
 #include "include/ui/sw_toplevel_widget.h"
 
@@ -33,6 +34,20 @@ static gboolean on_area_size_allocate(GtkWidget *widget, GdkRectangle *allocatio
     sw_switcher_widget_update_size(switcher_widget, allocation->width, allocation->height);
 
     return TRUE;
+}
+
+static gboolean on_tick(GtkWidget *widget, GdkFrameClock *frame_clock, gpointer data) {
+    struct sw_switcher_widget *switcher_widget = data;
+    struct sw_animation_manager *animation_manager = switcher_widget->animation_manager;
+    
+    sw_animation_manager_update(
+        animation_manager,
+        gdk_frame_clock_get_frame_time(frame_clock)
+    );
+    
+    // Перерисовываем
+    gtk_widget_queue_draw(widget);
+    return G_SOURCE_CONTINUE;
 }
 
 static gboolean handle_primary_toplevel_activation(
@@ -305,6 +320,7 @@ int main(int argc, char **argv) {
     gtk_layer_set_margin(GTK_WINDOW(window), GTK_LAYER_SHELL_EDGE_RIGHT, -1);
 
     gtk_widget_add_events(window, GDK_KEY_PRESS_MASK | GDK_KEY_RELEASE_MASK);
+    gtk_widget_add_tick_callback(window, (GtkTickCallback) on_tick, switcher->switcher_widget, NULL);
 
     g_signal_connect(window, "key-press-event", G_CALLBACK(on_key_press), switcher->switcher_widget);
     g_signal_connect(window, "key-release-event", G_CALLBACK(on_key_release), switcher->switcher_widget);

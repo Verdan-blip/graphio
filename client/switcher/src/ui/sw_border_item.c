@@ -1,4 +1,5 @@
 #include "include/ui/sw_border_item.h"
+#include "include/math/sw_vec2.h"
 #include <stdlib.h>
 
 struct sw_border_item* sw_border_item_create() {
@@ -9,7 +10,7 @@ struct sw_border_item* sw_border_item_create() {
 
 void sw_border_item_resize(
     struct sw_border_item* item,
-    double size,
+    struct sw_vec2 size,
     double corner_radius,
     double thickness
 ) {
@@ -20,10 +21,9 @@ void sw_border_item_resize(
 
 void sw_border_item_set_position(
     struct sw_border_item* item,
-    double x, double y
+    struct sw_vec2 pos
 ) {
-    item->x = x;
-    item->y = y;
+    item->pos = pos;
 }
 
 void sw_border_item_set_data(
