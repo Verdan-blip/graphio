@@ -5,7 +5,9 @@
 #include "include/ui/sw_switcher_widget.h"
 #include "include/math/sw_color.h"
 #include "include/math/sw_vec2.h"
+#include "include/ui/animation/sw_animation.h"
 #include "include/ui/animation/sw_animation_manager.h"
+#include "include/ui/animation/sw_easing.h"
 #include "include/ui/sw_border_item.h"
 #include "include/ui/sw_flow_layout.h"
 #include "include/ui/sw_polar_layout.h"
@@ -122,6 +124,11 @@ void sw_switcher_widget_update_size(
         switcher_widget->primary_layout,
         primary_size, 
         primary_inner_padding
+    );
+
+    sw_border_item_set_thickness(
+        switcher_widget->selection_border, 
+        3.0
     );
 
     switcher_widget->primary_layout_pos.x = (size.x - switcher_widget->primary_layout->canvas_size.x) / 2;
@@ -341,14 +348,22 @@ void sw_switcher_widget_mark_toplevel_selected(
         }
     }
 
-
     pos = sw_vec2_translate(pos, -padding / 2);
     size = sw_vec2_translate(size, padding);
 
-    sw_border_item_resize(border_item, size, corner_radius, thickness);
-    sw_border_item_set_position(border_item, pos);
+    sw_border_item_set_thickness(border_item, thickness);
+    sw_border_item_set_corner_radius(border_item, corner_radius);
 
-    sw_switcher_widget_redraw(switcher_widget);
+    struct sw_animation *pos_animation = sw_animation_create_vec2(
+        &border_item->pos, pos, 50, sw_ease_out_cubic
+    );
+
+    struct sw_animation *size_animation = sw_animation_create_vec2(
+        &border_item->size, size, 50, sw_ease_out_cubic
+    );
+
+    sw_animation_manager_add(switcher_widget->animation_manager, pos_animation);
+    sw_animation_manager_add(switcher_widget->animation_manager, size_animation);
 }
 
 void sw_switcher_widget_notify_is_current_toplevel_change(
@@ -388,7 +403,7 @@ void sw_switcher_widget_notify_is_current_toplevel_change(
     pos = sw_vec2_translate(pos, -padding / 2);
     size = sw_vec2_translate(size, padding);
 
-    sw_border_item_resize(current_toplevel_item, size, corner_radius, thickness);
+    sw_border_item_update(current_toplevel_item, size, corner_radius, thickness);
     sw_border_item_set_position(current_toplevel_item, pos);
 
     sw_switcher_widget_redraw(switcher_widget);

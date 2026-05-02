@@ -1,8 +1,6 @@
-#include "include/math/sw_color.h"
-#include "include/math/sw_vec2.h"
-#include "include/ui/sw_primitives.h"
-#include <stdbool.h>
 #define _POSIX_C_SOURCE 200809L
+
+#include <stdbool.h>
 
 #include "glib.h"
 #include "gtk/gtk.h"
@@ -14,6 +12,11 @@
 #include "include/ui/sw_switcher_widget.h"
 #include "include/sw_toplevel.h"
 #include "include/sw_switcher.h"
+
+#include "include/math/sw_color.h"
+#include "include/math/sw_vec2.h"
+
+#include "include/ui/sw_primitives.h"
 
 static const int LOAD_ICON_SIZE = 64;
 

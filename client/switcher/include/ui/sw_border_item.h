@@ -15,10 +15,25 @@ struct sw_border_item {
 
 struct sw_border_item* sw_border_item_create();
 
-void sw_border_item_resize(
+void sw_border_item_update(
     struct sw_border_item* item,
     struct sw_vec2 size,
     double corner_radius,
+    double thickness
+);
+
+void sw_border_item_set_size(
+    struct sw_border_item* item,
+    struct sw_vec2 size
+);
+
+void sw_border_item_set_corner_radius(
+    struct sw_border_item* item,
+    double corner_radius
+);
+
+void sw_border_item_set_thickness(
+    struct sw_border_item* item,
     double thickness
 );
 

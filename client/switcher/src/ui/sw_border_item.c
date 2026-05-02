@@ -8,22 +8,43 @@ struct sw_border_item* sw_border_item_create() {
     return item;
 }
 
-void sw_border_item_resize(
-    struct sw_border_item* item,
-    struct sw_vec2 size,
-    double corner_radius,
-    double thickness
-) {
-    item->size = size;
-    item->thickness = thickness;
-    item->corner_radius = corner_radius;
-}
-
 void sw_border_item_set_position(
     struct sw_border_item* item,
     struct sw_vec2 pos
 ) {
     item->pos = pos;
+}
+
+void sw_border_item_update(
+    struct sw_border_item* item,
+    struct sw_vec2 size,
+    double corner_radius,
+    double thickness
+) {
+    sw_border_item_set_size(item, size);
+    sw_border_item_set_corner_radius(item, corner_radius);
+    sw_border_item_set_thickness(item, thickness);
+}
+
+void sw_border_item_set_size(
+    struct sw_border_item* item,
+    struct sw_vec2 size
+) {
+    item->size = size;
+}
+
+void sw_border_item_set_corner_radius(
+    struct sw_border_item* item,
+    double corner_radius
+) {
+    item->corner_radius = corner_radius;
+}
+
+void sw_border_item_set_thickness(
+    struct sw_border_item* item,
+    double thickness
+) {
+    item->thickness = thickness;
 }
 
 void sw_border_item_set_data(
