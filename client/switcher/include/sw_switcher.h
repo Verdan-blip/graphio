@@ -1,7 +1,6 @@
 #ifndef SW_SWITCHER_H
 #define SW_SWITCHER_H
 
-#include "wlr-foreign-toplevel-management-unstable-v1-client-protocol.h"
 #include <stdbool.h>
 #include <wayland-util.h>
 
@@ -17,9 +16,10 @@ struct sw_graph_model;
 
 #define PRIMATY_TOPLEVEL_COUNT 4
 
+struct sw_wayland_backend;
+
 struct sw_switcher {
-    struct zwlr_foreign_toplevel_manager_v1 *manager;
-    struct wl_seat *seat;
+    struct sw_wayland_backend *wayland_backend;
 
     struct sw_toplevel *current_toplevel;
     struct sw_switcher_widget *switcher_widget;

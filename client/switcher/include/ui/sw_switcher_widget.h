@@ -17,7 +17,6 @@ struct sw_toplevel_widget;
 
 enum sw_switcher_widget_current_zone {
     SW_SWITCHER_PRIMARY_ZONE,
-    SW_SWITCHER_PRIMARY_ZONE_BORDERING,
     SW_SWITCHER_SLOT_ZONE
 };
 

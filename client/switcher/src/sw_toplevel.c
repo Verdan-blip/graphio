@@ -8,12 +8,13 @@
 
 #include <wlr/types/wlr_foreign_toplevel_management_v1.h>
 
+#include "wlr-foreign-toplevel-management-unstable-v1-client-protocol.h"
+
 #include "include/sw_toplevel.h"
 #include "include/sw_switcher.h"
 #include "include/ui/sw_toplevel_widget.h"
 #include "include/ui/sw_switcher_widget.h"
-
-#include "wlr-foreign-toplevel-management-unstable-v1-client-protocol.h"
+#include "include/wayland/sw_wayland_backend.h"
 
 static const struct zwlr_foreign_toplevel_handle_v1_listener toplevel_impl = {
     .title = sw_handle_title,
@@ -131,9 +132,10 @@ void sw_handle_closed(
 
 void sw_toplevel_activate(struct sw_toplevel *toplevel) {
     struct sw_switcher *switcher = toplevel->switcher;
+    struct sw_wayland_backend *backend = switcher->wayland_backend;
 
     zwlr_foreign_toplevel_handle_v1_activate(
         toplevel->handle, 
-        switcher->seat
+        switcher->wayland_backend->seat
     );
 }
