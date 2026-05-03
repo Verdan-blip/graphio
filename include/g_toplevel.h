@@ -13,8 +13,6 @@ struct g_server;
 struct g_toplevel {
 	struct wl_list link;
 
-	// Generated parameter by Composer
-	uint32_t id;
 	char *app_id;
 
 	bool maximized;

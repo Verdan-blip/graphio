@@ -273,8 +273,6 @@ void g_toplevel_init(struct g_server *server, struct wlr_xdg_toplevel *xdg_tople
 
 	toplevel->handle = handle;
 	handle->toplevel = toplevel;
-
-	toplevel->id = generate_toplevel_id();
 }
 
 void g_toplevel_focus(struct g_toplevel *toplevel) {
