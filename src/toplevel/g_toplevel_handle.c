@@ -6,9 +6,9 @@
 #include <wayland-server-core.h>
 #include <wayland-util.h>
 
-#include "include/g_toplevel_handle.h"
+#include "include/toplevel/g_toplevel_handle.h"
+#include "include/toplevel/g_toplevel.h"
 #include "include/g_server.h"
-#include "include/g_toplevel.h"
 
 #include "wlr/types/wlr_foreign_toplevel_management_v1.h"
 

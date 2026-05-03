@@ -13,9 +13,9 @@
 #include <wayland-server-core.h>
 #include <wayland-util.h>
 
-#include "include/g_toplevel.h"
+#include "include/toplevel/g_toplevel.h"
+#include "include/toplevel/g_toplevel_handle.h"
 #include "include/g_server.h"
-#include "include/g_toplevel_handle.h"
 
 static char *DEFAULT_APP_ID = "unknown";
 

@@ -34,7 +34,7 @@
 #include "include/g_launcher.h"
 #include "include/g_layer_surface.h"
 #include "include/g_server.h"
-#include "include/g_toplevel.h"
+#include "include/toplevel/g_toplevel.h"
 #include "include/output/g_output.h"
 #include "include/popup/g_popup.h"
 #include "include/keyboard/g_keyboard.h"

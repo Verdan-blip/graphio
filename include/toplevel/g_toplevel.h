@@ -6,8 +6,7 @@
 #include <wlr/types/wlr_foreign_toplevel_management_v1.h>
 #include <wlr/types/wlr_xdg_shell.h>
 
-#include "include/g_toplevel_handle.h"
-
+struct g_toplevel_handle;
 struct g_server;
 
 struct g_toplevel {

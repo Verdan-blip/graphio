@@ -4,7 +4,7 @@
 #include <wlr/types/wlr_foreign_toplevel_management_v1.h>
 
 #include "include/g_layer_surface.h"
-#include "include/g_toplevel.h"
+#include "include/toplevel/g_toplevel.h"
 
 struct g_layer_surface;
 

@@ -38,8 +38,8 @@ sources = [
   'src/output/g_output.c',
   'src/popup/g_popup.c',
   'src/keyboard/g_keyboard.c',
-  'src/g_toplevel.c',
-  'src/g_toplevel_handle.c',
+  'src/toplevel/g_toplevel.c',
+  'src/toplevel/g_toplevel_handle.c',
   'src/g_launcher.c',
   'src/g_layer_surface.c'
 ]
