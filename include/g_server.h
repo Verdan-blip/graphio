@@ -67,16 +67,6 @@ struct g_server {
 	struct wlr_foreign_toplevel_manager_v1 *toplevel_manager;
 };
 
-struct g_keyboard {
-	struct wl_list link;
-	struct g_server *server;
-	struct wlr_keyboard *wlr_keyboard;
-
-	struct wl_listener modifiers;
-	struct wl_listener key;
-	struct wl_listener destroy;
-};
-
 void reset_cursor_mode(struct g_server *server);
 
 struct wlr_output* g_server_get_current_output(struct g_server *server);
