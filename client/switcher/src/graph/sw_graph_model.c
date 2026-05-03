@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#include "include/sw_graph_model.h"
+#include "include/graph/sw_graph_model.h"
 
 struct sw_graph_model* sw_graph_model_create() {
     struct sw_graph_model *graph_model = malloc(sizeof(struct sw_graph_model));
@@ -36,19 +36,17 @@ void sw_graph_model_destroy(struct sw_graph_model *model) {
     free(model);
 }
 
-void sw_graph_model_update_node_score(
+bool sw_graph_model_node_update_score(
     struct sw_graph_model *model, 
     struct sw_graph_node *node,
-    double new_score,
-    bool *topology_changed
+    double new_score
 ) {
-    if (topology_changed) *topology_changed = false;
-    if (!model || !node) return;
+    if (!model || !node) return false;
 
     node->score = new_score;
 
     if (sw_graph_model_node_is_primary(model, node)) {
-        return;
+        return false;
     }
 
     struct sw_graph_node **slots[4] = {
@@ -91,17 +89,17 @@ void sw_graph_model_update_node_score(
             }
         }
 
-        if (topology_changed) *topology_changed = true;
+        return true;
     }
+
+    return false;
 }
 
-void sw_graph_model_add(
+bool sw_graph_model_node_add(
     struct sw_graph_model *model, 
-    struct sw_graph_node *node,
-    bool *topology_changed
+    struct sw_graph_node *node
 ) {
-    if (topology_changed) *topology_changed = false;
-    if (!model || !node) return;
+    if (!model || !node) return false;
 
     bool added_to_primary = true;
 
@@ -130,25 +128,28 @@ void sw_graph_model_add(
     }
 
     model->size++;
-    if (topology_changed && added_to_primary) {
-        *topology_changed = true;
+
+    if (added_to_primary) {
+        return true;
     }
+
+    return false;
 }
 
-void sw_graph_model_remove(
+bool sw_graph_model_node_remove(
     struct sw_graph_model *model, 
-    struct sw_graph_node *node,
-    bool *topology_changed
+    struct sw_graph_node *node
 ) {
-if (topology_changed) *topology_changed = false;
-    if (!model || !node) return;
+    if (!model || !node) return false;
 
     struct sw_graph_node **target_slot = NULL;
 
-    if (model->west_node == node)       target_slot = &model->west_node;
-    else if (model->east_node == node)  target_slot = &model->east_node;
+    if (model->west_node == node) target_slot = &model->west_node;
+    else if (model->east_node == node) target_slot = &model->east_node;
     else if (model->north_node == node) target_slot = &model->north_node;
     else if (model->south_node == node) target_slot = &model->south_node;
+
+    bool topology_changed = false;
 
     if (target_slot != NULL) {
         *target_slot = model->slot_head;
@@ -167,16 +168,20 @@ if (topology_changed) *topology_changed = false;
             new_primary->prev = NULL;
         }
         
-        if (topology_changed) *topology_changed = true;
+        topology_changed = true;
     } else {
         if (node->prev) node->prev->next = node->next;
         if (node->next) node->next->prev = node->prev;
         
         if (model->slot_head == node) model->slot_head = node->next;
         if (model->slot_tail == node) model->slot_tail = node->prev;
+
+        topology_changed = false;
     }
 
     model->size--;
+
+    return topology_changed;
 }
 
 bool sw_graph_model_node_is_primary(

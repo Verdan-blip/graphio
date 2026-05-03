@@ -8,15 +8,8 @@ struct sw_toplevel;
 struct sw_switcher_widget;
 struct sw_scorer;
 struct sw_graph_model;
-
-#define INDEX_LEFT 0
-#define INDEX_RIGHT 1
-#define INDEX_TOP 2
-#define INDEX_BOTTOM 3
-
-#define PRIMATY_TOPLEVEL_COUNT 4
-
 struct sw_wayland_backend;
+struct sw_app_storage;
 
 struct sw_switcher {
     struct sw_wayland_backend *wayland_backend;
@@ -26,6 +19,7 @@ struct sw_switcher {
 
     struct sw_scorer *scorer;
     struct sw_graph_model *graph_model;
+    struct sw_app_storage *storage;
 };
 
 struct sw_switcher* sw_switcher_create();

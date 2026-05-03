@@ -3,7 +3,7 @@
 #include "include/input/sw_input_handler.h"
 #include "include/sw_toplevel.h"
 #include "include/ui/sw_toplevel_widget.h"
-#include "include/sw_graph_model.h"
+#include "include/graph/sw_graph_model.h"
 
 static gboolean handle_primary_activation(
     struct sw_switcher_widget *sw, 

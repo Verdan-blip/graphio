@@ -3,6 +3,8 @@
 
 #include <stdbool.h>
 
+#include "include/graph//sw_graph_node.h"
+
 #define sw_graph_model_for_each_primary_unsafe(pos, i, model) \
     for (i = 0, pos = (model)->west_node; \
          i < 4; \
@@ -22,14 +24,6 @@
                     (i == 4) ? (model)->slot_head : \
                     (pos ? pos->next : NULL))
 
-struct sw_graph_node {
-    void *data;
-    double score;
-    
-    struct sw_graph_node *next;
-    struct sw_graph_node *prev;
-};
-
 struct sw_graph_model {
     int size;
 
@@ -43,25 +37,23 @@ struct sw_graph_model {
 };
 
 struct sw_graph_model* sw_graph_model_create();
+
 void sw_graph_model_destroy(struct sw_graph_model *model);
 
-void sw_graph_model_add(
+bool sw_graph_model_node_add(
     struct sw_graph_model *model,
-    struct sw_graph_node *node,
-    bool *topology_changed
+    struct sw_graph_node *node
 );
 
-void sw_graph_model_remove(
+bool sw_graph_model_node_remove(
     struct sw_graph_model *model,
-    struct sw_graph_node *node,
-    bool *topology_changed
+    struct sw_graph_node *node
 );
 
-void sw_graph_model_update_node_score(
+bool sw_graph_model_node_update_score(
     struct sw_graph_model *model, 
     struct sw_graph_node *node,
-    double new_score,
-    bool *topology_changed
+    double new_score
 );
 
 bool sw_graph_model_node_is_primary(

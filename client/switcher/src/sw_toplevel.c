@@ -16,6 +16,35 @@
 #include "include/ui/sw_switcher_widget.h"
 #include "include/wayland/sw_wayland_backend.h"
 
+static void sw_handle_title(
+    void *data,
+    struct zwlr_foreign_toplevel_handle_v1 *handle,
+    const char *title
+);
+
+static void sw_handle_app_id(
+    void *data,
+    struct zwlr_foreign_toplevel_handle_v1 *handle,
+    const char *app_id
+);
+
+static void sw_handle_state(
+    void *data,
+    struct zwlr_foreign_toplevel_handle_v1 *handle,
+    struct wl_array *states
+);
+
+static void sw_handle_done(
+    void *data,
+	struct zwlr_foreign_toplevel_handle_v1 *zwlr_foreign_toplevel_handle_v1
+);
+
+static void sw_handle_closed(
+    void *data,
+    struct zwlr_foreign_toplevel_handle_v1 *handle
+);
+
+
 static const struct zwlr_foreign_toplevel_handle_v1_listener toplevel_impl = {
     .title = sw_handle_title,
     .app_id = sw_handle_app_id,
@@ -37,12 +66,11 @@ void sw_handle_toplevel(
     toplevel->title = NULL;
     toplevel->app_id = NULL;
 
-    sw_switcher_add_toplevel(switcher, toplevel);
-
     toplevel->handle = handle;
     toplevel->switcher = switcher;
     toplevel->activated = false;
 
+    sw_switcher_add_toplevel(switcher, toplevel);
     sw_toplevel_widget_init(toplevel);
     
     sw_switcher_widget_on_add_toplevel(
@@ -53,7 +81,7 @@ void sw_handle_toplevel(
     zwlr_foreign_toplevel_handle_v1_add_listener(handle, &toplevel_impl, toplevel);
 }
 
-void sw_handle_title(
+static void sw_handle_title(
     void *data,
     struct zwlr_foreign_toplevel_handle_v1 *handle,
     const char *title
@@ -67,14 +95,14 @@ void sw_handle_title(
     printf("sw_toplevel: handled title %s\n", title);
 }
 
-void sw_handle_app_id(
+static void sw_handle_app_id(
     void *data,
     struct zwlr_foreign_toplevel_handle_v1 *handle,
     const char *app_id
 ) {
     struct sw_toplevel *toplevel = data;
 
-    if (toplevel->title) free(toplevel->app_id);
+    if (toplevel->app_id) free(toplevel->app_id);
     toplevel->app_id = strdup(app_id ? app_id : "unknown");
 
     sw_toplevel_widget_load_icon(toplevel->toplevel_widget);
@@ -83,7 +111,7 @@ void sw_handle_app_id(
     printf("sw_toplevel: handled app_id %s\n", app_id);
 }
 
-void sw_handle_state(
+static void sw_handle_state(
     void *data,
     struct zwlr_foreign_toplevel_handle_v1 *handle,
     struct wl_array *states
@@ -100,14 +128,14 @@ void sw_handle_state(
     }
 }
 
-void sw_handle_done(
+static void sw_handle_done(
     void *data,
 	struct zwlr_foreign_toplevel_handle_v1 *zwlr_foreign_toplevel_handle_v1
 ) {
 
 }
 
-void sw_handle_closed(
+static void sw_handle_closed(
     void *data,
     struct zwlr_foreign_toplevel_handle_v1 *handle
 ) {

@@ -12,7 +12,7 @@
 #include "include/ui/sw_flow_layout.h"
 #include "include/ui/sw_polar_layout.h"
 #include "gtk/gtk.h"
-#include "include/sw_graph_model.h"
+#include "include/graph/sw_graph_model.h"
 #include "include/ui/sw_primitives.h"
 #include "include/ui/sw_toplevel_widget.h"
 #include "include/sw_switcher.h"
