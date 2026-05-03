@@ -40,6 +40,7 @@ sources = [
   'src/keyboard/g_keyboard.c',
   'src/toplevel/g_toplevel.c',
   'src/toplevel/g_toplevel_handle.c',
+  'src/seat/g_seat.c',
   'src/g_launcher.c',
   'src/g_layer_surface.c'
 ]

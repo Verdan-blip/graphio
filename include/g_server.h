@@ -7,6 +7,7 @@
 #include "include/toplevel/g_toplevel.h"
 
 struct g_layer_surface;
+struct g_seat;
 
 enum g_cursor_mode {
 	G_CURSOR_PASSTHROUGH,
@@ -48,11 +49,9 @@ struct g_server {
 	struct wl_listener cursor_axis;
 	struct wl_listener cursor_frame;
 
-	struct wlr_seat *seat;
+	struct g_seat *seat;
+
 	struct wl_listener new_input;
-	struct wl_listener request_cursor;
-	struct wl_listener pointer_focus_change;
-	struct wl_listener request_set_selection;
 	struct wl_list keyboards;
 	enum g_cursor_mode cursor_mode;
 	struct g_toplevel *grabbed_toplevel;

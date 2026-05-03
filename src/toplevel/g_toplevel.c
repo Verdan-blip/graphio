@@ -16,6 +16,7 @@
 #include "include/toplevel/g_toplevel.h"
 #include "include/toplevel/g_toplevel_handle.h"
 #include "include/g_server.h"
+#include "include/seat/g_seat.h"
 
 static char *DEFAULT_APP_ID = "unknown";
 
@@ -279,22 +280,10 @@ void g_toplevel_focus(struct g_toplevel *toplevel) {
 	if (toplevel == NULL) return;
 
 	struct g_server *server = toplevel->server;
-	struct wlr_seat *seat = server->seat;
 
 	struct g_toplevel *prev_toplevel = server->current_toplevel;
-
-	struct wlr_surface *current_toplevel_surface = toplevel->xdg_toplevel->base->surface;
-	struct wlr_keyboard *keyboard = wlr_seat_get_keyboard(seat);
-
-	if (keyboard != NULL) {
-		wlr_seat_keyboard_notify_enter(
-			seat, 
-			current_toplevel_surface,
-			keyboard->keycodes, 
-			keyboard->num_keycodes, 
-			&keyboard->modifiers
-		);
-	}
+	
+	g_seat_enter_toplevel(server->seat, toplevel);
 
 	if (prev_toplevel == toplevel) return;
 

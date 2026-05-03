@@ -38,6 +38,7 @@
 #include "include/output/g_output.h"
 #include "include/popup/g_popup.h"
 #include "include/keyboard/g_keyboard.h"
+#include "include/seat/g_seat.h"
 
 struct wlr_output* g_server_get_current_output(struct g_server *server) {
 	struct wlr_cursor *cursor = server->cursor;
@@ -74,33 +75,8 @@ static void server_new_input(struct wl_listener *listener, void *data) {
 	if (!wl_list_empty(&server->keyboards)) {
 		caps |= WL_SEAT_CAPABILITY_KEYBOARD;
 	}
-	wlr_seat_set_capabilities(server->seat, caps);
-}
 
-static void seat_request_cursor(struct wl_listener *listener, void *data) {
-	struct g_server *server = wl_container_of(listener, server, request_cursor);
-	struct wlr_seat_pointer_request_set_cursor_event *event = data;
-	struct wlr_seat_client *focused_client = server->seat->pointer_state.focused_client;
-
-	if (focused_client == event->seat_client) {
-		wlr_cursor_set_surface(server->cursor, event->surface, event->hotspot_x, event->hotspot_y);
-	}
-}
-
-static void seat_pointer_focus_change(struct wl_listener *listener, void *data) {
-	struct g_server *server = wl_container_of(listener, server, pointer_focus_change);
-	struct wlr_seat_pointer_focus_change_event *event = data;
-
-	if (event->new_surface == NULL) {
-		wlr_cursor_set_xcursor(server->cursor, server->cursor_mgr, "default");
-	}
-}
-
-static void seat_request_set_selection(struct wl_listener *listener, void *data) {
-	struct g_server *server = wl_container_of(listener, server, request_set_selection);
-	struct wlr_seat_request_set_selection_event *event = data;
-
-	wlr_seat_set_selection(server->seat, event->source, event->serial);
+	g_seat_set_capabilities(server->seat, caps);
 }
 
 void reset_cursor_mode(struct g_server *server) {
@@ -166,18 +142,19 @@ static void process_cursor_motion(struct g_server *server, uint32_t time) {
 	}
 
 	double sx, sy;
-	struct wlr_seat *seat = server->seat;
+
 	struct wlr_surface *surface = NULL;
-	struct g_toplevel *toplevel = g_toplevel_at(server,
-			server->cursor->x, server->cursor->y, &surface, &sx, &sy);
+	struct g_toplevel *toplevel = g_toplevel_at(server, server->cursor->x, server->cursor->y, &surface, &sx, &sy);
+
 	if (!toplevel) {
 		wlr_cursor_set_xcursor(server->cursor, server->cursor_mgr, "default");
 	}
+
 	if (surface) {
-		wlr_seat_pointer_notify_enter(seat, surface, sx, sy);
-		wlr_seat_pointer_notify_motion(seat, time, sx, sy);
+		g_seat_pointer_notify_enter(server->seat, surface, sx, sy);
+		g_seat_pointer_notify_motion(server->seat, time, sx, sy);
 	} else {
-		wlr_seat_pointer_clear_focus(seat);
+		g_seat_pointer_clear_focus(server->seat);
 	}
 }
 
@@ -201,7 +178,8 @@ static void server_cursor_button(struct wl_listener *listener, void *data) {
 	struct g_server *server = wl_container_of(listener, server, cursor_button);
 	struct wlr_pointer_button_event *event = data;
 
-	wlr_seat_pointer_notify_button(server->seat, 	event->time_msec, event->button, event->state);
+	g_seat_pointer_notify_button(server->seat, event);
+
 	if (event->state == WL_POINTER_BUTTON_STATE_RELEASED) {
 		reset_cursor_mode(server);
 	} else {
@@ -216,15 +194,13 @@ static void server_cursor_axis(struct wl_listener *listener, void *data) {
 	struct g_server *server = wl_container_of(listener, server, cursor_axis);
 	struct wlr_pointer_axis_event *event = data;
 
-	wlr_seat_pointer_notify_axis(server->seat,
-			event->time_msec, event->orientation, event->delta,
-			event->delta_discrete, event->source, event->relative_direction);
+	g_seat_pointer_notify_axis(server->seat, event);
 }
 
 static void server_cursor_frame(struct wl_listener *listener, void *data) {
 	struct g_server *server = wl_container_of(listener, server, cursor_frame);
 
-	wlr_seat_pointer_notify_frame(server->seat);
+	g_seat_pointer_notify_frame(server->seat);
 }
 
 static void server_new_output(struct wl_listener *listener, void *data) {
@@ -345,16 +321,8 @@ int main(int argc, char *argv[]) {
 	wl_list_init(&server.keyboards);
 	server.new_input.notify = server_new_input;
 	wl_signal_add(&server.backend->events.new_input, &server.new_input);
-	server.seat = wlr_seat_create(server.wl_display, "seat0");
-	server.request_cursor.notify = seat_request_cursor;
-	wl_signal_add(&server.seat->events.request_set_cursor,
-			&server.request_cursor);
-	server.pointer_focus_change.notify = seat_pointer_focus_change;
-	wl_signal_add(&server.seat->pointer_state.events.focus_change,
-			&server.pointer_focus_change);
-	server.request_set_selection.notify = seat_request_set_selection;
-	wl_signal_add(&server.seat->events.request_set_selection,
-			&server.request_set_selection);
+
+	server.seat = g_seat_create(&server);
 
 	server.toplevel_manager = wlr_foreign_toplevel_manager_v1_create(server.wl_display);
 
@@ -393,11 +361,9 @@ int main(int argc, char *argv[]) {
 	wl_list_remove(&server.cursor_axis.link);
 	wl_list_remove(&server.cursor_frame.link);
 
-	wl_list_remove(&server.new_input.link);
-	wl_list_remove(&server.request_cursor.link);
-	wl_list_remove(&server.pointer_focus_change.link);
-	wl_list_remove(&server.request_set_selection.link);
+	g_seat_destroy(server.seat);
 
+	wl_list_remove(&server.new_input.link);
 	wl_list_remove(&server.new_output.link);
 
 	wlr_scene_node_destroy(&server.scene->tree.node);

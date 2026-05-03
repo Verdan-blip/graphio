@@ -6,13 +6,15 @@
 #include <wlr/types/wlr_scene.h>
 
 #include "include/g_server.h"
+#include "include/seat/g_seat.h"
 #include "include/keyboard/g_keyboard.h"
 
 static void keyboard_handle_modifiers(struct wl_listener *listener, void *data) {
 	struct g_keyboard *keyboard = wl_container_of(listener, keyboard, modifiers);
+	struct g_server *server = keyboard->server;
 
-	wlr_seat_set_keyboard(keyboard->server->seat, keyboard->wlr_keyboard);
-	wlr_seat_keyboard_notify_modifiers(keyboard->server->seat, &keyboard->wlr_keyboard->modifiers);
+	g_seat_set_keyboard(server->seat, keyboard);
+	g_seat_keyboard_notify_modifiers(server->seat, keyboard);
 }
 
 static bool handle_keybinding(struct g_server *server, xkb_keysym_t sym) {
@@ -34,14 +36,8 @@ static bool handle_key_press(struct g_server *server, struct g_keyboard *keyboar
 		wlr_scene_node_set_enabled(&server->foregound_tree->node, true);
 
 		if (server->switcher_surface) {
-			wlr_seat_set_keyboard(server->seat, keyboard->wlr_keyboard);
-			wlr_seat_keyboard_notify_enter(
-					server->seat, 
-				server->switcher_surface,
-				keyboard->wlr_keyboard->keycodes, 
-				keyboard->wlr_keyboard->num_keycodes, 
-				&keyboard->wlr_keyboard->modifiers
-			);
+			g_seat_set_keyboard(server->seat, keyboard);
+			g_seat_enter_surface(server->seat, server->switcher_surface);
 		}
 		return true;
 	}
@@ -59,7 +55,6 @@ static void keyboard_handle_key(struct wl_listener *listener, void *data) {
 	struct g_keyboard *keyboard = wl_container_of(listener, keyboard, key);
 	struct g_server *server = keyboard->server;
 	struct wlr_keyboard_key_event *event = data;
-	struct wlr_seat *seat = server->seat;
 
 	uint32_t keycode = event->keycode + 8;
 
@@ -88,9 +83,8 @@ static void keyboard_handle_key(struct wl_listener *listener, void *data) {
 	}
 
 	if (!handled) {
-		wlr_seat_set_keyboard(seat, keyboard->wlr_keyboard);
-		wlr_seat_keyboard_notify_key(seat, event->time_msec,
-			event->keycode, event->state);
+		g_seat_set_keyboard(server->seat, keyboard);
+		g_seat_keyboard_notify_key(server->seat, event);
 	}
 }
 
@@ -129,7 +123,7 @@ struct g_keyboard* g_keyboard_create(
 	keyboard->destroy.notify = keyboard_handle_destroy;
 	wl_signal_add(&device->events.destroy, &keyboard->destroy);
 
-	wlr_seat_set_keyboard(server->seat, keyboard->wlr_keyboard);
+	g_seat_set_keyboard(server->seat, keyboard);
 
     return keyboard;
 }
