@@ -67,12 +67,6 @@ struct g_server {
 	struct wlr_foreign_toplevel_manager_v1 *toplevel_manager;
 };
 
-struct g_popup {
-	struct wlr_xdg_popup *xdg_popup;
-	struct wl_listener commit;
-	struct wl_listener destroy;
-};
-
 struct g_keyboard {
 	struct wl_list link;
 	struct g_server *server;

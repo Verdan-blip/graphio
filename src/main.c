@@ -36,6 +36,7 @@
 #include "include/g_server.h"
 #include "include/g_toplevel.h"
 #include "include/output/g_output.h"
+#include "include/popup/g_popup.h"
 
 struct wlr_output* g_server_get_current_output(struct g_server *server) {
 	struct wlr_cursor *cursor = server->cursor;
@@ -362,40 +363,11 @@ static void server_new_output(struct wl_listener *listener, void *data) {
 	wl_list_insert(&server->outputs, &output->link);
 }
 
-static void xdg_popup_commit(struct wl_listener *listener, void *data) {
-	struct g_popup *popup = wl_container_of(listener, popup, commit);
-
-	if (popup->xdg_popup->base->initial_commit) {
-		wlr_xdg_surface_schedule_configure(popup->xdg_popup->base);
-	}
-}
-
-static void xdg_popup_on_destroy(struct wl_listener *listener, void *data) {
-	/* Called when the xdg_popup is destroyed. */
-	struct g_popup *popup = wl_container_of(listener, popup, destroy);
-
-	wl_list_remove(&popup->commit.link);
-	wl_list_remove(&popup->destroy.link);
-
-	free(popup);
-}
-
 static void server_new_xdg_popup(struct wl_listener *listener, void *data) {
+	struct g_server *server = wl_container_of(listener, server, new_xdg_popup);
 	struct wlr_xdg_popup *xdg_popup = data;
 
-	struct g_popup *popup = calloc(1, sizeof(*popup));
-	popup->xdg_popup = xdg_popup;
-
-	struct wlr_xdg_surface *parent = wlr_xdg_surface_try_from_wlr_surface(xdg_popup->parent);
-	assert(parent != NULL);
-	struct wlr_scene_tree *parent_tree = parent->data;
-	xdg_popup->base->data = wlr_scene_xdg_surface_create(parent_tree, xdg_popup->base);
-
-	popup->commit.notify = xdg_popup_commit;
-	wl_signal_add(&xdg_popup->base->surface->events.commit, &popup->commit);
-
-	popup->destroy.notify = xdg_popup_on_destroy;
-	wl_signal_add(&xdg_popup->events.destroy, &popup->destroy);
+	g_popup_init(server, xdg_popup);
 }
 
 static void server_new_xdg_toplevel(struct wl_listener *listener, void *data) {
