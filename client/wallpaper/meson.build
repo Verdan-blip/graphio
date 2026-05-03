@@ -1,5 +1,5 @@
 project(
-  'graphio', 
+  'wallpaper', 
   'c',
   version: '0.1.0',
   default_options: [
@@ -31,27 +31,21 @@ xkbcommon = dependency('xkbcommon')
 pixman = dependency('pixman-1')
 jansson = dependency('jansson')
 cairo = dependency('cairo')
-protoc_c_dep = dependency('libprotobuf-c')
+
+gtk = dependency('gtk+-3.0')
+gtk_layer = dependency('gtk-layer-shell-0')
 
 sources = [
   'src/main.c',
-  'src/output/g_output.c',
-  'src/popup/g_popup.c',
-  'src/cursor/g_cursor.c',
-  'src/keyboard/g_keyboard.c',
-  'src/toplevel/g_toplevel.c',
-  'src/toplevel/g_toplevel_handle.c',
-  'src/seat/g_seat.c',
-  'src/g_launcher.c',
-  'src/g_layer_surface.c'
+  '../../protocols/src/wlr-foreign-toplevel-management-unstable-v1-protocol.c'
 ]
 
-protocols_inc = include_directories('protocols')
+protocols_inc = include_directories('../../protocols')
 
 executable(
-  'graphio',
+  'main',
   sources,
-  include_directories: [protocols_inc],
+  include_directories: protocols_inc,
   dependencies: [
     wlroots,
     wayland_server,
@@ -60,6 +54,7 @@ executable(
     pixman,
     jansson,
     cairo,
-    protoc_c_dep
+    gtk,
+    gtk_layer
   ]
 )
