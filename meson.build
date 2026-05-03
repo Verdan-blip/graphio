@@ -37,6 +37,7 @@ sources = [
   'src/main.c',
   'src/output/g_output.c',
   'src/popup/g_popup.c',
+  'src/cursor/g_cursor.c',
   'src/keyboard/g_keyboard.c',
   'src/toplevel/g_toplevel.c',
   'src/toplevel/g_toplevel_handle.c',

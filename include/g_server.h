@@ -8,12 +8,7 @@
 
 struct g_layer_surface;
 struct g_seat;
-
-enum g_cursor_mode {
-	G_CURSOR_PASSTHROUGH,
-	G_CURSOR_MOVE,
-	G_CURSOR_RESIZE,
-};
+struct g_cursor;
 
 struct g_server {
 	struct wl_display *wl_display;
@@ -35,25 +30,18 @@ struct g_server {
 	struct wl_listener new_xdg_popup;
 
 	struct wl_list toplevels;
+	struct wl_list keyboards;
+	struct g_seat *seat;
+	struct g_cursor *cursor;
+
 	struct g_toplevel *current_toplevel;
 
 	struct wlr_layer_shell_v1 *layer_shell;
 	struct wl_list layer_surfaces;
 	struct wl_listener new_layer;
 
-	struct wlr_cursor *cursor;
-	struct wlr_xcursor_manager *cursor_mgr;
-	struct wl_listener cursor_motion;
-	struct wl_listener cursor_motion_absolute;
-	struct wl_listener cursor_button;
-	struct wl_listener cursor_axis;
-	struct wl_listener cursor_frame;
-
-	struct g_seat *seat;
-
 	struct wl_listener new_input;
-	struct wl_list keyboards;
-	enum g_cursor_mode cursor_mode;
+
 	struct g_toplevel *grabbed_toplevel;
 	double grab_x, grab_y;
 	struct wlr_box grab_geobox;
@@ -65,8 +53,6 @@ struct g_server {
 
 	struct wlr_foreign_toplevel_manager_v1 *toplevel_manager;
 };
-
-void reset_cursor_mode(struct g_server *server);
 
 struct wlr_output* g_server_get_current_output(struct g_server *server);
 

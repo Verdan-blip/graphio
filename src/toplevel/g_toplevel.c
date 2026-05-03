@@ -15,6 +15,7 @@
 
 #include "include/toplevel/g_toplevel.h"
 #include "include/toplevel/g_toplevel_handle.h"
+#include "include/cursor/g_cursor.h"
 #include "include/g_server.h"
 #include "include/seat/g_seat.h"
 
@@ -61,13 +62,14 @@ static void begin_interactive(
 	uint32_t edges
 ) {
 	struct g_server *server = toplevel->server;
+	struct g_cursor *cursor = server->cursor;
 
 	server->grabbed_toplevel = toplevel;
-	server->cursor_mode = mode;
+	cursor->cursor_mode = mode;
 
 	if (mode == G_CURSOR_MOVE) {
-		server->grab_x = server->cursor->x - toplevel->scene_tree->node.x;
-		server->grab_y = server->cursor->y - toplevel->scene_tree->node.y;
+		server->grab_x = cursor->wlr_cursor->x - toplevel->scene_tree->node.x;
+		server->grab_y = cursor->wlr_cursor->y - toplevel->scene_tree->node.y;
 	} else {
 		struct wlr_box *geo_box = &toplevel->xdg_toplevel->base->geometry;
 
@@ -76,8 +78,8 @@ static void begin_interactive(
 		double border_y = (toplevel->scene_tree->node.y + geo_box->y) +
 			((edges & WLR_EDGE_BOTTOM) ? geo_box->height : 0);
 
-		server->grab_x = server->cursor->x - border_x;
-		server->grab_y = server->cursor->y - border_y;
+		server->grab_x = cursor->wlr_cursor->x - border_x;
+		server->grab_y = cursor->wlr_cursor->y - border_y;
 
 		server->grab_geobox = *geo_box;
 		server->grab_geobox.x += toplevel->scene_tree->node.x;
@@ -97,9 +99,11 @@ static void xdg_toplevel_map(struct wl_listener *listener, void *data) {
 
 static void xdg_toplevel_unmap(struct wl_listener *listener, void *data) {
 	struct g_toplevel *toplevel = wl_container_of(listener, toplevel, unmap);
+	struct g_server *server = toplevel->server;
 
 	if (toplevel == toplevel->server->grabbed_toplevel) {
-		reset_cursor_mode(toplevel->server);
+		g_cursor_reset_mode(server->cursor);
+		server->grabbed_toplevel = NULL;
 	}
 
 	wl_list_remove(&toplevel->link);
