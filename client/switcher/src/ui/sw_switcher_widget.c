@@ -1,4 +1,5 @@
 #include "cairo.h"
+#include <stdbool.h>
 #include <stdlib.h>
 #include <wayland-util.h>
 
@@ -111,6 +112,7 @@ void sw_switcher_widget_update_size(
     double slot_inner_padding = 24;
     double slot_gap_between_items = 32;
     double slot_item_height = slot_height - slot_inner_padding * 2;
+
     sw_flow_layout_resize(
         switcher_widget->slot_layout,
         size.x,
@@ -126,11 +128,6 @@ void sw_switcher_widget_update_size(
         primary_inner_padding
     );
 
-    sw_border_item_set_thickness(
-        switcher_widget->selection_border, 
-        3.0
-    );
-
     switcher_widget->primary_layout_pos.x = (size.x - switcher_widget->primary_layout->canvas_size.x) / 2;
     switcher_widget->primary_layout_pos.y = slot_height + gap;
 
@@ -138,6 +135,16 @@ void sw_switcher_widget_update_size(
     switcher_widget->slot_layout_pos.y = 0;
 
     switcher_widget->padding_between_layouts = gap;
+
+    struct sw_polar_layout_item *item = switcher_widget->primary_layout->center;
+    struct sw_vec2 selection_pos = sw_vec2_add(item->pos, switcher_widget->primary_layout_pos);
+    struct sw_vec2 selection_size = item->size;
+    double corner_radius = item->corner_radius;
+
+    sw_border_item_set_thickness(switcher_widget->selection_border, 3.0);
+    sw_border_item_set_size(switcher_widget->selection_border, selection_size);
+    sw_border_item_set_corner_radius(switcher_widget->selection_border, corner_radius);
+    sw_border_item_set_position(switcher_widget->selection_border, selection_pos);
 }
 
 void sw_switcher_widget_on_add_toplevel(
@@ -178,124 +185,78 @@ void sw_switcher_widget_on_remove_toplevel(
     if (switcher_widget->window) sw_switcher_widget_redraw(switcher_widget);
 }
 
-void sw_switcher_widget_draw(
-    struct sw_switcher_widget *switcher_widget,
-    cairo_t *cr
-) {
-    // Drawing slot toplevels background
-    struct sw_flow_layout *slot_layout = switcher_widget->slot_layout;
-    if (switcher_widget->is_slot_widget_visible) {
-        struct sw_color slot_bg_color;
-        if (switcher_widget->current_zone == SW_SWITCHER_SLOT_ZONE) {
-            slot_bg_color = switcher_widget->slot_bg_active_color;
-        } else {
-            slot_bg_color = switcher_widget->slot_bg_inactive_color;
-        }
+static void draw_slot_zone(struct sw_switcher_widget *sw, cairo_t *cr, bool active) {
+    if (!sw->is_slot_widget_visible) return;
 
-        sw_draw_filled_round_corner_rect(
-            switcher_widget->slot_layout_pos,
-            sw_vec2_create(
-                switcher_widget->slot_layout->max_width, 
-                switcher_widget->slot_layout->total_height
-            ),
-            switcher_widget->slot_layout->corner_radius, 
-            slot_bg_color, 
-            cr
-        );
-    }
-
-    // Drawing primary toplevels background
-    struct sw_polar_layout *primary_layout = switcher_widget->primary_layout;
-
-    struct sw_color primary_bg_color;
-    if (switcher_widget->current_zone != SW_SWITCHER_PRIMARY_ZONE) {
-        primary_bg_color = switcher_widget->slot_bg_inactive_color;
-    } else {
-        primary_bg_color = switcher_widget->slot_bg_active_color;
-    }
+    struct sw_flow_layout *layout = sw->slot_layout;
+    struct sw_color bg_color = active ? sw->slot_bg_active_color : sw->slot_bg_inactive_color;
+    float opacity = active ? 1.0f : 0.5f;
 
     sw_draw_filled_round_corner_rect(
-        switcher_widget->primary_layout_pos, 
-        switcher_widget->primary_layout->canvas_size,
-        switcher_widget->primary_layout->corner_radius, 
-        primary_bg_color, 
-        cr
+        sw->slot_layout_pos,
+        sw_vec2_create(layout->max_width, layout->total_height),
+        layout->corner_radius, bg_color, cr
     );
 
-    // Drawing primary toplevels
-    struct sw_polar_layout_item *primary_item;
-    for (int i = 0; i < 4; i++) {
-        switch (i) {
-            case 0: primary_item = primary_layout->west; break;
-            case 1: primary_item = primary_layout->east; break;
-            case 2: primary_item = primary_layout->north; break;
-            default: primary_item = primary_layout->south; break;
-        }
-
-        struct sw_vec2 global_item_pos = sw_vec2_add(primary_item->pos, switcher_widget->primary_layout_pos);
-
-        if (primary_item->data == NULL) {
-            sw_toplevel_widget_draw_placeholder(
-                global_item_pos, 
-                primary_item->size,
-                primary_item->corner_radius,
-                switcher_widget->current_indicator_color,
-                cr
-            );
-        } else {
-            struct sw_toplevel *toplevel = primary_item->data;
-            sw_toplevel_widget_draw(
-                toplevel->toplevel_widget,
-                switcher_widget,
-                global_item_pos,
-                primary_item->size, 
-                cr
-            );
-        }
-    }
-
-    // Drawing slot toplevels
-    struct sw_flow_item *slot_item;
-    for (int i = 0; i < slot_layout->items_count; i++) {
-        slot_item = slot_layout->items[i];
-
-        struct sw_toplevel *item_toplevel = slot_item->data;
-        struct sw_toplevel_widget *item_toplevel_widget = item_toplevel->toplevel_widget;
-
+    for (int i = 0; i < layout->items_count; i++) {
+        struct sw_flow_item *item = layout->items[i];
+        struct sw_toplevel *toplevel = item->data;
+        
+        toplevel->toplevel_widget->opacity = opacity;
         sw_toplevel_widget_draw(
-            item_toplevel_widget,
-            switcher_widget,
-            sw_vec2_add(slot_item->pos, switcher_widget->slot_layout_pos),
-            slot_item->size,
-            cr
+            toplevel->toplevel_widget, sw,
+            sw_vec2_add(item->pos, sw->slot_layout_pos),
+            item->size, cr
         );
     }
+}
 
-    // Drawing current toplevel border
-    struct sw_border_item *current_toplevel_border = switcher_widget->current_toplevel_border;
-    float current_toplevel_border_color[4] = {
-        0.68f, 0.68f, 1.0f, 0.5f
-    };
+static void draw_primary_zone(struct sw_switcher_widget *sw, cairo_t *cr, bool active) {
+    struct sw_polar_layout *layout = sw->primary_layout;
+    struct sw_color bg_color = active ? sw->slot_bg_active_color : sw->slot_bg_inactive_color;
+    float opacity = active ? 1.0f : 0.25f;
 
-    sw_draw_outlined_round_corner_rect(
-        current_toplevel_border->pos, 
-        current_toplevel_border->size,
-        current_toplevel_border->corner_radius, 
-        current_toplevel_border->thickness,
-        switcher_widget->current_indicator_color,
-        cr
+    sw_draw_filled_round_corner_rect(
+        sw->primary_layout_pos, layout->canvas_size,
+        layout->corner_radius, bg_color, cr
     );
 
-    // Drawing selection border
-    struct sw_border_item *selection_border = switcher_widget->selection_border;
+    struct sw_polar_layout_item *items[] = {layout->west, layout->east, layout->north, layout->south};
+
+    for (int i = 0; i < 4; i++) {
+        struct sw_vec2 pos = sw_vec2_add(items[i]->pos, sw->primary_layout_pos);
+        
+        if (!items[i]->data) {
+            sw_toplevel_widget_draw_placeholder(pos, items[i]->size, items[i]->corner_radius, sw->current_indicator_color, cr);
+        } else {
+            struct sw_toplevel *toplevel = items[i]->data;
+            toplevel->toplevel_widget->opacity = opacity;
+            sw_toplevel_widget_draw(toplevel->toplevel_widget, sw, pos, items[i]->size, cr);
+        }
+    }
+}
+
+void sw_switcher_widget_draw(struct sw_switcher_widget *sw, cairo_t *cr) {
+    bool primary_active = (sw->current_zone == SW_SWITCHER_PRIMARY_ZONE);
+
+    if (primary_active) {
+        draw_slot_zone(sw, cr, false);
+        draw_primary_zone(sw, cr, true);
+    } else {
+        draw_primary_zone(sw, cr, false);
+        draw_slot_zone(sw, cr, true);
+    }
 
     sw_draw_outlined_round_corner_rect(
-        selection_border->pos, 
-        selection_border->size,
-        selection_border->corner_radius, 
-        selection_border->thickness,
-        switcher_widget->selection_color,
-        cr
+        sw->current_toplevel_border->pos, sw->current_toplevel_border->size,
+        sw->current_toplevel_border->corner_radius, sw->current_toplevel_border->thickness,
+        sw->current_indicator_color, cr
+    );
+
+    sw_draw_outlined_round_corner_rect(
+        sw->selection_border->pos, sw->selection_border->size,
+        sw->selection_border->corner_radius, sw->selection_border->thickness,
+        sw->selection_color, cr
     );
 }
 
@@ -353,17 +314,19 @@ void sw_switcher_widget_mark_toplevel_selected(
 
     sw_border_item_set_thickness(border_item, thickness);
     sw_border_item_set_corner_radius(border_item, corner_radius);
+    sw_border_item_set_size(border_item, size);
 
-    struct sw_animation *pos_animation = sw_animation_create_vec2(
-        &border_item->pos, pos, 50, sw_ease_out_cubic
-    );
-
-    struct sw_animation *size_animation = sw_animation_create_vec2(
-        &border_item->size, size, 50, sw_ease_out_cubic
+    struct sw_animation *pos_animation = sw_animation_create_squash_move(
+        &border_item->pos,
+        &border_item->size,
+        size,
+        pos, 
+        0.35, 
+        150, 
+        sw_ease_out_cubic
     );
 
     sw_animation_manager_add(switcher_widget->animation_manager, pos_animation);
-    sw_animation_manager_add(switcher_widget->animation_manager, size_animation);
 }
 
 void sw_switcher_widget_notify_is_current_toplevel_change(

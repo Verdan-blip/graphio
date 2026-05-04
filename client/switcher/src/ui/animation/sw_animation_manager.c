@@ -1,4 +1,3 @@
-#include <stdio.h>
 #include <stdlib.h>
 
 #include "include/ui/animation/sw_animation_manager.h"
