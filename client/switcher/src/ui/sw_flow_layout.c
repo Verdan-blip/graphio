@@ -15,17 +15,34 @@ static void flow_layout_update(struct sw_flow_layout *layout) {
     }
 
     double available_width = layout->max_width - (layout->inner_padding * 2);
+    
     int cols = (int) ((available_width + layout->gap) / (layout->item_size.x + layout->gap));
     if (cols < 1) cols = 1;
+    if (cols > layout->items_count) cols = layout->items_count;
 
     layout->columns = cols;
     layout->rows = (layout->items_count + cols - 1) / cols;
+
+    double content_width = (cols * layout->item_size.x) + ((cols - 1) * layout->gap);
+    
+    double horizontal_offset = (available_width - content_width) / 2.0;
 
     for (int i = 0; i < layout->items_count; i++) {
         int row = i / cols;
         int col = i % cols;
 
-        layout->items[i]->pos.x = layout->inner_padding + col * (layout->item_size.x + layout->gap);
+
+        int items_in_this_row = cols;
+        if (row == layout->rows - 1) {
+            items_in_this_row = layout->items_count % cols;
+            if (items_in_this_row == 0) items_in_this_row = cols;
+        }
+        
+        double row_content_width = (items_in_this_row * layout->item_size.x) + ((items_in_this_row - 1) * layout->gap);
+        double row_offset = (available_width - row_content_width) / 2.0;
+
+
+        layout->items[i]->pos.x = layout->inner_padding + row_offset + col * (layout->item_size.x + layout->gap);
         layout->items[i]->pos.y = layout->inner_padding + row * (layout->item_size.y + layout->gap);
 
         layout->items[i]->size = layout->item_size;
@@ -35,8 +52,6 @@ static void flow_layout_update(struct sw_flow_layout *layout) {
     layout->total_height = (layout->rows * layout->item_size.y) + 
                            ((layout->rows - 1) * layout->gap) + 
                            (layout->inner_padding * 2);
-    
-    if (layout->items_count == 0) layout->total_height = 0;
 }
 
 struct sw_flow_layout* sw_flow_layout_create() {

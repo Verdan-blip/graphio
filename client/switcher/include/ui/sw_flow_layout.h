@@ -2,6 +2,7 @@
 #define SW_FLOW_LAYOUT_H
 
 #include "include/math/sw_vec2.h"
+
 struct sw_flow_item {
     struct sw_vec2 pos;
     struct sw_vec2 size;

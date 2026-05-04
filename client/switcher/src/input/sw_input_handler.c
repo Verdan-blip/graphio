@@ -34,15 +34,21 @@ static gboolean handle_primary_zone(struct sw_switcher_widget *sw, guint keyval)
 
     switch (keyval) {
         case GDK_KEY_Up: {
-            struct sw_toplevel *selected = sw->selected_toplevel_widget->toplevel;
-            struct sw_graph_node *north = graph->north_node;
+            struct sw_toplevel_widget *selected_widget = sw->selected_toplevel_widget;
 
-            if (north == NULL) return FALSE;
-
-            if (north->data == selected) {
-                return handle_first_slot_activation(sw, graph->slot_head);
-            } else {
+            if (selected_widget == NULL) {
                 return handle_primary_activation(sw, graph->north_node);
+            } else {
+                struct sw_toplevel *selected = selected_widget->toplevel;
+                struct sw_graph_node *north = graph->north_node;
+
+                if (north == NULL) return FALSE;
+
+                if (north->data == selected) {
+                    return handle_first_slot_activation(sw, graph->slot_head);
+                } else {
+                    return handle_primary_activation(sw, graph->north_node);
+                }
             }
         }
         
@@ -121,6 +127,11 @@ gboolean sw_input_handler_handle_release(struct sw_switcher_widget *sw, GdkEvent
             sw_switcher_widget_mark_toplevel_selected(sw, NULL);
             
             return TRUE;
+        } else {
+            sw_switcher_set_activated(sw->switcher, sw->switcher->current_toplevel);
+            
+            sw_switcher_widget_enter_primary_zone(sw);
+            sw_switcher_widget_mark_toplevel_selected(sw, NULL);
         }
     }
     return FALSE;
